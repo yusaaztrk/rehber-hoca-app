@@ -19,6 +19,7 @@ com\rehberhoca\repository\OgrenciRepository.class
 com\rehberhoca\util\ValidationUtils$NameParts.class
 com\rehberhoca\ui\RehberHocaAnaEkran$2.class
 com\rehberhoca\ui\OgrenciPanel$ModernStudentTableCellRenderer.class
+com\rehberhoca\ui\AtamaPanel$6.class
 com\rehberhoca\entity\Ogrenci.class
 com\rehberhoca\ui\AtamaPanel$3.class
 com\rehberhoca\ui\ProgramPanel$3.class
@@ -36,6 +37,7 @@ com\rehberhoca\repository\OgrenciProgramRepository.class
 com\rehberhoca\ui\AtamaPanel$2.class
 com\rehberhoca\ui\OgrenciPanel$8.class
 com\rehberhoca\ui\AtamaPanel$1.class
+com\rehberhoca\ui\OgrenciPanel$9.class
 com\rehberhoca\config\DataLoader.class
 com\rehberhoca\ui\OgrenciPanel$1.class
 com\rehberhoca\util\ValidationUtils.class

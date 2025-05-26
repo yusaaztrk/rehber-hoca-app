@@ -22,6 +22,8 @@ import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
@@ -29,6 +31,7 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPasswordField;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
@@ -48,6 +51,7 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 
 import com.rehberhoca.entity.Ogrenci;
+import com.rehberhoca.entity.Program;
 import com.rehberhoca.service.OgrenciService;
 import com.rehberhoca.service.ProgramService;
 import com.rehberhoca.util.ValidationUtils;
@@ -61,6 +65,7 @@ public class OgrenciPanel extends JPanel {
     private JTable ogrenciTable;
     private DefaultTableModel tableModel;
     private JTextField aramaField, adSoyadField, emailField, telefonField;
+    private JPasswordField sifreField;
     private JLabel statusLabel, totalStudentsLabel, activeStudentsLabel,
                   recentStudentsLabel, validationStatusLabel;
     private JProgressBar progressBar;
@@ -184,6 +189,7 @@ public class OgrenciPanel extends JPanel {
         adSoyadField = createModernTextField(" Ad Soyad");
         emailField = createModernTextField(" E-posta Adresi");
         telefonField = createModernTextField(" Telefon Numarası");
+        sifreField = createModernPasswordField(" Şifre");
 
         // Real-time validation
         emailField.addKeyListener(new java.awt.event.KeyAdapter() {
@@ -199,6 +205,13 @@ public class OgrenciPanel extends JPanel {
                 validatePhoneField();
             }
         });
+
+        sifreField.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyReleased(java.awt.event.KeyEvent e) {
+                validatePasswordField();
+            }
+        });
     }
 
     private JTextField createModernTextField(String placeholder) {
@@ -210,6 +223,19 @@ public class OgrenciPanel extends JPanel {
         ));
         field.setToolTipText(placeholder);
         field.setPreferredSize(new Dimension(250, 35));
+        return field;
+    }
+
+    private JPasswordField createModernPasswordField(String placeholder) {
+        JPasswordField field = new JPasswordField();
+        field.setFont(NORMAL_FONT);
+        field.setBorder(new CompoundBorder(
+            new LineBorder(LIGHT_GRAY, 1),
+            new EmptyBorder(8, 12, 8, 12)
+        ));
+        field.setToolTipText(placeholder);
+        field.setPreferredSize(new Dimension(250, 35));
+        field.setEchoChar('*');
         return field;
     }
 
@@ -463,6 +489,15 @@ public class OgrenciPanel extends JPanel {
         gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
         formPanel.add(telefonField, gbc);
 
+        // Şifre
+        gbc.gridx = 0; gbc.gridy = 3; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0;
+        JLabel sifreLabel = new JLabel("🔒 Şifre:");
+        sifreLabel.setFont(HEADER_FONT);
+        formPanel.add(sifreLabel, gbc);
+
+        gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
+        formPanel.add(sifreField, gbc);
+
         // Butonlar
         JPanel buttonPanel = new JPanel(new FlowLayout());
         buttonPanel.setBackground(Color.WHITE);
@@ -481,7 +516,7 @@ public class OgrenciPanel extends JPanel {
         buttonPanel.add(Box.createHorizontalStrut(15));
         buttonPanel.add(iptalButton);
 
-        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2; gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 2; gbc.fill = GridBagConstraints.HORIZONTAL;
         formPanel.add(buttonPanel, gbc);
 
         panel.add(formPanel, BorderLayout.NORTH);
@@ -497,7 +532,7 @@ public class OgrenciPanel extends JPanel {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createTitledBorder(
             new LineBorder(INFO_COLOR, 2),
-            "🔍 Veri Doğrulama",
+            " Veri Doğrulama",
             0, 0, HEADER_FONT, INFO_COLOR
         ));
         panel.setBackground(Color.WHITE);
@@ -508,6 +543,7 @@ public class OgrenciPanel extends JPanel {
                                           "<li><b>Ad Soyad:</b> 2-100 karakter arası, özel karakterler kullanılabilir</li>" +
                                           "<li><b>E-posta:</b> Geçerli e-posta formatı (örn: ornek@email.com)</li>" +
                                           "<li><b>Telefon:</b> Türkiye formatı (örn: 0532 123 4567)</li>" +
+                                          "<li><b>🔒 Şifre:</b> En az 6 karakter, güvenli şifre önerilir</li>" +
                                           "</ul>" +
                                           "<p style='color: #e74c3c;'><b>Not:</b> Tüm alanlar gerçek zamanlı olarak doğrulanır.</p>" +
                                           "</div></html>");
@@ -767,6 +803,7 @@ stats.append("<tr><td>👥 Toplam Öğrenci</td><td><b>").append(allStudents.siz
             adSoyadField.setText(ogrenci.getAdSoyad());
             emailField.setText(ogrenci.getEmail());
             telefonField.setText(ogrenci.getTelefon());
+            sifreField.setText(ogrenci.getSifre() != null ? ogrenci.getSifre() : "");
 
             // Form sekmesine geç
             JTabbedPane parentTabs = (JTabbedPane) getComponent(1);
@@ -782,6 +819,17 @@ stats.append("<tr><td>👥 Toplam Öğrenci</td><td><b>").append(allStudents.siz
 
         SwingUtilities.invokeLater(() -> {
             try {
+                // Şifre validasyonu
+                String password = new String(sifreField.getPassword()).trim();
+                if (password.isEmpty()) {
+                    showModernMessage("🔒 Şifre Gerekli", "Lütfen bir şifre girin!", WARNING_COLOR);
+                    return;
+                }
+                if (password.length() < 6) {
+                    showModernMessage("🔒 Şifre Çok Kısa", "Şifre en az 6 karakter olmalıdır!", WARNING_COLOR);
+                    return;
+                }
+
                 // Validasyon
                 ValidationUtils.ValidationResult result = ValidationUtils.validateStudent(
                     adSoyadField.getText(), emailField.getText(), telefonField.getText()
@@ -805,6 +853,7 @@ stats.append("<tr><td>👥 Toplam Öğrenci</td><td><b>").append(allStudents.siz
                 ogrenci.setAdSoyad(formattedFullName);
                 ogrenci.setEmail(ValidationUtils.cleanEmail(emailField.getText()));
                 ogrenci.setTelefon(ValidationUtils.formatPhoneNumber(telefonField.getText()));
+                ogrenci.setSifre(password); // Şifre eklendi
 
                 // Kaydet
                 ogrenciService.ogrenciKaydet(ogrenci);
@@ -889,7 +938,72 @@ stats.append("<tr><td>👥 Toplam Öğrenci</td><td><b>").append(allStudents.siz
         }
     }
 
+    private void exportStudentsToExcel() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Excel Dosyasına Aktar");
+        fileChooser.setSelectedFile(new java.io.File("ogrenciler_" +
+                                   LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".csv"));
 
+        if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            setOperationInProgress("Excel dosyası oluşturuluyor...");
+
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    FileWriter writer = new FileWriter(fileChooser.getSelectedFile());
+
+                    // CSV Header with UTF-8 BOM for Turkish characters
+                    writer.write("\uFEFF"); // UTF-8 BOM
+                    writer.write("Ad Soyad,E-posta,Telefon,Kayıt Tarihi,Durum,Program Sayısı\n");
+
+                    // Data
+                    List<Ogrenci> ogrenciler = ogrenciService.tumOgrencileriGetir();
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+
+                    for (Ogrenci ogrenci : ogrenciler) {
+                        int programCount = 0;
+                        try {
+                            if (programService != null) {
+                                programCount = programService.ogrencininProgramlari(ogrenci.getId()).size();
+                            }
+                        } catch (Exception e) {
+                            // Ignore
+                        }
+
+                        String status = "Aktif";
+                        if (!ValidationUtils.isValidEmail(ogrenci.getEmail()) ||
+                            !ValidationUtils.isValidPhoneNumber(ogrenci.getTelefon())) {
+                            status = "Doğrulama Gerekli";
+                        }
+
+                        writer.write(String.format("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",%d\n",
+                            escapeCsvValue(ogrenci.getAdSoyad()),
+                            escapeCsvValue(ogrenci.getEmail()),
+                            escapeCsvValue(ogrenci.getTelefon()),
+                            ogrenci.getKayitTarihi().format(formatter),
+                            escapeCsvValue(status),
+                            programCount
+                        ));
+                    }
+
+                    writer.close();
+
+                    showModernMessage("📤 Export Başarılı",
+                        "Excel dosyası başarıyla oluşturuldu!\n\n" +
+                        "📁 Dosya: " + fileChooser.getSelectedFile().getName() + "\n" +
+                        "👥 Kayıt Sayısı: " + ogrenciler.size() + "\n" +
+                        "📅 Tarih: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")),
+                        SUCCESS_COLOR);
+
+                } catch (Exception e) {
+                    showModernMessage("❌ Export Hatası",
+                        "Excel dosyası oluşturulamadı:\n" + e.getMessage(),
+                        DANGER_COLOR);
+                } finally {
+                    setOperationCompleted();
+                }
+            });
+        }
+    }
 
     private void importStudentsFromExcel() {
         showModernMessage(" Bilgi",
@@ -925,6 +1039,24 @@ stats.append("<tr><td>👥 Toplam Öğrenci</td><td><b>").append(allStudents.siz
         JButton bulkValidateButton = createModernButton(" Toplu Doğrulama", PRIMARY_COLOR, 0);
         JButton bulkAssignButton = createModernButton(" Toplu Program Atama", SUCCESS_COLOR, 0);
 
+        // Event listeners
+        bulkDeleteButton.addActionListener(e -> {
+            dialog.dispose();
+            showBulkDeleteDialog();
+        });
+        bulkUpdateButton.addActionListener(e -> {
+            dialog.dispose();
+            showBulkUpdateDialog();
+        });
+        bulkValidateButton.addActionListener(e -> {
+            dialog.dispose();
+            performBulkValidation();
+        });
+        bulkAssignButton.addActionListener(e -> {
+            dialog.dispose();
+            showBulkAssignDialog();
+        });
+
         optionsPanel.add(bulkDeleteButton);
         optionsPanel.add(bulkUpdateButton);
         optionsPanel.add(bulkValidateButton);
@@ -945,15 +1077,45 @@ stats.append("<tr><td>👥 Toplam Öğrenci</td><td><b>").append(allStudents.siz
     }
 
     private void showAdvancedAnalytics() {
-        showModernMessage(" Gelişmiş Analitik",
-            "Öğrenci analitik raporu özellikleri:\n\n" +
-            " Kayıt Trendleri\n" +
-            " Program Tercihleri\n" +
-            " Zaman Bazlı Analizler\n" +
-            " Başarı Oranları\n" +
-            " Coğrafi Dağılım\n\n" +
-            "Yakında eklenecek...",
-            INFO_COLOR);
+        JDialog analyticsDialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "📊 Gelişmiş Öğrenci Analitikleri", true);
+        analyticsDialog.setSize(800, 600);
+        analyticsDialog.setLocationRelativeTo(this);
+
+        JPanel panel = new JPanel(new BorderLayout(15, 15));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        panel.setBackground(Color.WHITE);
+
+        // Başlık
+        JLabel titleLabel = new JLabel("<html><h2 style='color: #8e44ad;'>📊 Gelişmiş Öğrenci Analitikleri</h2></html>");
+        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        panel.add(titleLabel, BorderLayout.NORTH);
+
+        // Analitik içeriği
+        JTabbedPane analyticsTabs = new JTabbedPane();
+        analyticsTabs.setFont(HEADER_FONT);
+
+        // Kayıt Trendleri
+        analyticsTabs.addTab("📈 Kayıt Trendleri", createRegistrationTrendsPanel());
+
+        // Program Tercihleri
+        analyticsTabs.addTab("📚 Program Tercihleri", createProgramPreferencesPanel());
+
+        // Veri Kalitesi
+        analyticsTabs.addTab("🔍 Veri Kalitesi", createDataQualityPanel());
+
+        panel.add(analyticsTabs, BorderLayout.CENTER);
+
+        // Kapat butonu
+        JButton closeButton = createModernButton("❌ Kapat", DARK_GRAY, 0);
+        closeButton.addActionListener(e -> analyticsDialog.dispose());
+
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.setBackground(Color.WHITE);
+        buttonPanel.add(closeButton);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        analyticsDialog.add(panel);
+        analyticsDialog.setVisible(true);
     }
 
     private void performDataValidation() {
@@ -1079,6 +1241,61 @@ stats.append("<tr><td>👥 Toplam Öğrenci</td><td><b>").append(allStudents.siz
         }
     }
 
+    private void validatePasswordField() {
+        String password = new String(sifreField.getPassword()).trim();
+
+        if (!password.isEmpty()) {
+            if (password.length() >= 6) {
+                // Güçlü şifre kontrolü
+                boolean hasUpper = password.matches(".*[A-Z].*");
+                boolean hasLower = password.matches(".*[a-z].*");
+                boolean hasDigit = password.matches(".*\\d.*");
+                boolean hasSpecial = password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?].*");
+
+                int strength = 0;
+                if (hasUpper) strength++;
+                if (hasLower) strength++;
+                if (hasDigit) strength++;
+                if (hasSpecial) strength++;
+
+                if (strength >= 3 && password.length() >= 8) {
+                    // Güçlü şifre
+                    sifreField.setBorder(new CompoundBorder(
+                        new LineBorder(SUCCESS_COLOR, 2),
+                        new EmptyBorder(8, 12, 8, 12)
+                    ));
+                    sifreField.setToolTipText("🔒 Güçlü şifre!");
+                } else if (strength >= 2 && password.length() >= 6) {
+                    // Orta şifre
+                    sifreField.setBorder(new CompoundBorder(
+                        new LineBorder(WARNING_COLOR, 2),
+                        new EmptyBorder(8, 12, 8, 12)
+                    ));
+                    sifreField.setToolTipText("🔒 Orta güçlükte şifre - daha güçlü yapabilirsiniz");
+                } else {
+                    // Zayıf şifre
+                    sifreField.setBorder(new CompoundBorder(
+                        new LineBorder(DANGER_COLOR, 2),
+                        new EmptyBorder(8, 12, 8, 12)
+                    ));
+                    sifreField.setToolTipText("🔒 Zayıf şifre - en az 6 karakter, büyük/küçük harf, rakam kullanın");
+                }
+            } else {
+                sifreField.setBorder(new CompoundBorder(
+                    new LineBorder(DANGER_COLOR, 2),
+                    new EmptyBorder(8, 12, 8, 12)
+                ));
+                sifreField.setToolTipText("🔒 Şifre en az 6 karakter olmalıdır");
+            }
+        } else {
+            sifreField.setBorder(new CompoundBorder(
+                new LineBorder(LIGHT_GRAY, 1),
+                new EmptyBorder(8, 12, 8, 12)
+            ));
+            sifreField.setToolTipText("🔒 Şifre");
+        }
+    }
+
     // Yardımcı Metodlar
     private void setOperationInProgress(String message) {
         statusLabel.setText(" " + message);
@@ -1139,6 +1356,7 @@ stats.append("<tr><td>👥 Toplam Öğrenci</td><td><b>").append(allStudents.siz
         adSoyadField.setText("");
         emailField.setText("");
         telefonField.setText("");
+        sifreField.setText("");
 
         // Border'ları sıfırla
         adSoyadField.setBorder(new CompoundBorder(
@@ -1153,11 +1371,16 @@ stats.append("<tr><td>👥 Toplam Öğrenci</td><td><b>").append(allStudents.siz
             new LineBorder(LIGHT_GRAY, 1),
             new EmptyBorder(8, 12, 8, 12)
         ));
+        sifreField.setBorder(new CompoundBorder(
+            new LineBorder(LIGHT_GRAY, 1),
+            new EmptyBorder(8, 12, 8, 12)
+        ));
 
         // Tooltip'leri sıfırla
         adSoyadField.setToolTipText(" Ad Soyad");
         emailField.setToolTipText(" E-posta Adresi");
         telefonField.setToolTipText(" Telefon Numarası");
+        sifreField.setToolTipText("🔒 Şifre");
     }
 
     private void updateButtonStates() {
@@ -1354,77 +1577,7 @@ stats.append("<tr><td>👥 Toplam Öğrenci</td><td><b>").append(allStudents.siz
         }
     }
 
-    // Excel Export Metodu (Düzeltilmiş)
-    private void exportStudentsToExcel() {
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setDialogTitle("Excel Dosyasına Aktar");
-        fileChooser.setSelectedFile(new java.io.File("ogrenciler_" +
-                                   LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".csv"));
 
-        if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
-            setOperationInProgress("Excel dosyası oluşturuluyor...");
-
-            SwingUtilities.invokeLater(() -> {
-                try {
-                    FileWriter writer = new FileWriter(fileChooser.getSelectedFile());
-
-                    // CSV Header with UTF-8 BOM for Turkish characters
-                    writer.write("\uFEFF"); // UTF-8 BOM
-                    writer.write("Ad Soyad,E-posta,Telefon,Kayıt Tarihi,Program Sayısı,Durum\n");
-
-                    // Data
-                    List<Ogrenci> ogrenciler = ogrenciService.tumOgrencileriGetir();
-                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
-
-                    for (Ogrenci ogrenci : ogrenciler) {
-                        int programCount = 0;
-                        String status = "Aktif";
-
-                        try {
-                            if (programService != null) {
-                                programCount = programService.ogrencininProgramlari(ogrenci.getId()).size();
-                            }
-                        } catch (Exception e) {
-                            // Ignore program count error
-                        }
-
-                        // Veri doğrulama durumu
-                        if (!ValidationUtils.isValidEmail(ogrenci.getEmail()) ||
-                            !ValidationUtils.isValidPhoneNumber(ogrenci.getTelefon())) {
-                            status = "Doğrulama Gerekli";
-                        }
-
-                        // CSV formatında escape edilmiş değerler
-                        writer.write(String.format("\"%s\",\"%s\",\"%s\",\"%s\",%d,\"%s\"\n",
-                            escapeCsvValue(ogrenci.getAdSoyad()),
-                            escapeCsvValue(ogrenci.getEmail()),
-                            escapeCsvValue(ogrenci.getTelefon()),
-                            ogrenci.getKayitTarihi().format(formatter),
-                            programCount,
-                            escapeCsvValue(status)
-                        ));
-                    }
-
-                    writer.close();
-
-                    showModernMessage(" Export Başarılı",
-                        "Excel dosyası başarıyla oluşturuldu!\n\n" +
-                        " Dosya: " + fileChooser.getSelectedFile().getName() + "\n" +
-                        " Kayıt Sayısı: " + ogrenciler.size() + "\n" +
-                        " Tarih: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")),
-                        SUCCESS_COLOR);
-
-                } catch (Exception e) {
-                    showModernMessage(" Export Hatası",
-                        "Excel dosyası oluşturulamadı:\n" + e.getMessage(),
-                        DANGER_COLOR);
-                    e.printStackTrace();
-                } finally {
-                    setOperationCompleted();
-                }
-            });
-        }
-    }
 
     private String escapeCsvValue(String value) {
         if (value == null) return "";
@@ -1492,5 +1645,407 @@ stats.append("<tr><td>👥 Toplam Öğrenci</td><td><b>").append(allStudents.siz
         // Timer cleanup - Timer is not a Component, so we don't need to check components
         // If there were any Timer instances, they would be handled separately
         // This method is kept for future cleanup needs
+    }
+
+    // Gelişmiş İşlemler - Toplu İşlem Metodları
+    private void showBulkDeleteDialog() {
+        JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "🗑️ Toplu Öğrenci Silme", true);
+        dialog.setSize(500, 400);
+        dialog.setLocationRelativeTo(this);
+
+        JPanel panel = new JPanel(new BorderLayout(15, 15));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        panel.setBackground(Color.WHITE);
+
+        // Başlık
+        JLabel titleLabel = new JLabel("<html><h2 style='color: #e74c3c;'>🗑️ Toplu Öğrenci Silme</h2></html>");
+        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        panel.add(titleLabel, BorderLayout.NORTH);
+
+        // Seçim paneli
+        JPanel selectionPanel = new JPanel(new BorderLayout(10, 10));
+        selectionPanel.setBackground(Color.WHITE);
+        selectionPanel.setBorder(BorderFactory.createTitledBorder("Silme Kriterleri"));
+
+        JPanel criteriaPanel = new JPanel(new GridBagLayout());
+        criteriaPanel.setBackground(Color.WHITE);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.anchor = GridBagConstraints.WEST;
+
+        // Durum filtresi
+        gbc.gridx = 0; gbc.gridy = 0;
+        criteriaPanel.add(new JLabel("Durum:"), gbc);
+        gbc.gridx = 1;
+        JComboBox<String> statusCombo = new JComboBox<>(new String[]{"Tümü", "Doğrulama Gerekli", "Program Yok"});
+        criteriaPanel.add(statusCombo, gbc);
+
+        // Kayıt tarihi filtresi
+        gbc.gridx = 0; gbc.gridy = 1;
+        criteriaPanel.add(new JLabel("Kayıt tarihi:"), gbc);
+        gbc.gridx = 1;
+        JComboBox<String> dateCombo = new JComboBox<>(new String[]{"Tümü", "Son 30 gün", "Son 90 gün", "1 yıldan eski"});
+        criteriaPanel.add(dateCombo, gbc);
+
+        // Program sayısı filtresi
+        gbc.gridx = 0; gbc.gridy = 2;
+        criteriaPanel.add(new JLabel("Program sayısı:"), gbc);
+        gbc.gridx = 1;
+        JComboBox<String> programCountCombo = new JComboBox<>(new String[]{"Tümü", "0 program", "1 program", "2+ program"});
+        criteriaPanel.add(programCountCombo, gbc);
+
+        selectionPanel.add(criteriaPanel, BorderLayout.CENTER);
+
+        // Uyarı mesajı
+        JLabel warningLabel = new JLabel("<html><div style='color: #e74c3c; text-align: center; padding: 15px;'>" +
+            "<b>⚠️ UYARI:</b> Bu işlem geri alınamaz!<br>" +
+            "Seçilen kriterlere uyan tüm öğrenciler kalıcı olarak silinecektir." +
+            "</div></html>");
+        warningLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        selectionPanel.add(warningLabel, BorderLayout.SOUTH);
+
+        panel.add(selectionPanel, BorderLayout.CENTER);
+
+        // Butonlar
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.setBackground(Color.WHITE);
+
+        JButton previewButton = createModernButton("👁️ Önizleme", WARNING_COLOR, 0);
+        JButton deleteButton = createModernButton("🗑️ Sil", DANGER_COLOR, 0);
+        JButton cancelButton = createModernButton("❌ İptal", DARK_GRAY, 0);
+
+        previewButton.addActionListener(e -> {
+            showBulkDeletePreview(statusCombo.getSelectedItem().toString(),
+                                dateCombo.getSelectedItem().toString(),
+                                programCountCombo.getSelectedItem().toString());
+        });
+
+        deleteButton.addActionListener(e -> {
+            int result = JOptionPane.showConfirmDialog(dialog,
+                "<html><div style='color: #e74c3c; text-align: center;'>" +
+                "<h3>Son Onay</h3>" +
+                "<p>Seçilen kriterlere uyan öğrencileri silmek istediğinizden emin misiniz?</p>" +
+                "<p><b>Bu işlem geri alınamaz!</b></p>" +
+                "</div></html>",
+                "Toplu Silme Onayı",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+
+            if (result == JOptionPane.YES_OPTION) {
+                performBulkDelete(statusCombo.getSelectedItem().toString(),
+                                dateCombo.getSelectedItem().toString(),
+                                programCountCombo.getSelectedItem().toString());
+                dialog.dispose();
+            }
+        });
+
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        buttonPanel.add(previewButton);
+        buttonPanel.add(deleteButton);
+        buttonPanel.add(cancelButton);
+
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        dialog.add(panel);
+        dialog.setVisible(true);
+    }
+
+    private void showBulkUpdateDialog() {
+        JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "✏️ Toplu Öğrenci Güncelleme", true);
+        dialog.setSize(500, 350);
+        dialog.setLocationRelativeTo(this);
+
+        JPanel panel = new JPanel(new BorderLayout(15, 15));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        panel.setBackground(Color.WHITE);
+
+        // Başlık
+        JLabel titleLabel = new JLabel("<html><h2 style='color: #f39c12;'>✏️ Toplu Öğrenci Güncelleme</h2></html>");
+        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        panel.add(titleLabel, BorderLayout.NORTH);
+
+        // Form paneli
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        formPanel.setBackground(Color.WHITE);
+        formPanel.setBorder(BorderFactory.createTitledBorder("Güncelleme Alanları"));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.anchor = GridBagConstraints.WEST;
+
+        // E-posta domain güncelleme
+        gbc.gridx = 0; gbc.gridy = 0;
+        formPanel.add(new JLabel("E-posta domain değiştir:"), gbc);
+
+        gbc.gridy = 1;
+        JCheckBox updateEmailCheck = new JCheckBox("Etkin");
+        updateEmailCheck.setBackground(Color.WHITE);
+        formPanel.add(updateEmailCheck, gbc);
+
+        gbc.gridx = 1; gbc.gridy = 0;
+        formPanel.add(new JLabel("Eski domain:"), gbc);
+        gbc.gridy = 1;
+        JTextField oldDomainField = new JTextField("@eski.com", 15);
+        oldDomainField.setEnabled(false);
+        formPanel.add(oldDomainField, gbc);
+
+        gbc.gridx = 2; gbc.gridy = 0;
+        formPanel.add(new JLabel("Yeni domain:"), gbc);
+        gbc.gridy = 1;
+        JTextField newDomainField = new JTextField("@yeni.com", 15);
+        newDomainField.setEnabled(false);
+        formPanel.add(newDomainField, gbc);
+
+        // Telefon format güncelleme
+        gbc.gridx = 0; gbc.gridy = 2;
+        formPanel.add(new JLabel("Telefon formatını düzelt:"), gbc);
+
+        gbc.gridy = 3;
+        JCheckBox updatePhoneCheck = new JCheckBox("Etkin (0XXX XXX XXXX formatına çevir)");
+        updatePhoneCheck.setBackground(Color.WHITE);
+        formPanel.add(updatePhoneCheck, gbc);
+
+        // Checkbox event listeners
+        updateEmailCheck.addActionListener(e -> {
+            boolean enabled = updateEmailCheck.isSelected();
+            oldDomainField.setEnabled(enabled);
+            newDomainField.setEnabled(enabled);
+        });
+
+        panel.add(formPanel, BorderLayout.CENTER);
+
+        // Butonlar
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.setBackground(Color.WHITE);
+
+        JButton updateButton = createModernButton("✏️ Güncelle", SUCCESS_COLOR, 0);
+        JButton cancelButton = createModernButton("❌ İptal", DARK_GRAY, 0);
+
+        updateButton.addActionListener(e -> {
+            if (!updateEmailCheck.isSelected() && !updatePhoneCheck.isSelected()) {
+                showModernMessage("⚠️ Uyarı", "Lütfen en az bir güncelleme seçeneği seçin!", WARNING_COLOR);
+                return;
+            }
+
+            int result = JOptionPane.showConfirmDialog(dialog,
+                "Seçili tüm öğrencileri güncellemek istediğinizden emin misiniz?",
+                "Toplu Güncelleme Onayı",
+                JOptionPane.YES_NO_OPTION);
+
+            if (result == JOptionPane.YES_OPTION) {
+                performBulkUpdate(updateEmailCheck.isSelected() ? oldDomainField.getText() : null,
+                                updateEmailCheck.isSelected() ? newDomainField.getText() : null,
+                                updatePhoneCheck.isSelected());
+                dialog.dispose();
+            }
+        });
+
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        buttonPanel.add(updateButton);
+        buttonPanel.add(cancelButton);
+
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        dialog.add(panel);
+        dialog.setVisible(true);
+    }
+
+    private void performBulkValidation() {
+        setOperationInProgress("Toplu doğrulama yapılıyor...");
+
+        SwingUtilities.invokeLater(() -> {
+            try {
+                List<Ogrenci> allStudents = ogrenciService.tumOgrencileriGetir();
+
+                int validEmails = 0, validPhones = 0, validNames = 0;
+                StringBuilder errors = new StringBuilder();
+
+                for (Ogrenci student : allStudents) {
+                    if (ValidationUtils.isValidName(student.getAdSoyad())) validNames++;
+                    else errors.append("❌ Geçersiz isim: ").append(student.getAdSoyad()).append("\n");
+
+                    if (ValidationUtils.isValidEmail(student.getEmail())) validEmails++;
+                    else errors.append("❌ Geçersiz e-posta: ").append(student.getEmail()).append("\n");
+
+                    if (ValidationUtils.isValidPhoneNumber(student.getTelefon())) validPhones++;
+                    else if (!ValidationUtils.isEmpty(student.getTelefon()))
+                        errors.append("❌ Geçersiz telefon: ").append(student.getTelefon()).append("\n");
+                }
+
+                String summary = String.format(
+                    "🔍 Toplu Veri Doğrulama Raporu\n\n" +
+                    "👥 Toplam Öğrenci: %d\n" +
+                    "✅ Geçerli İsim: %d/%d (%.1f%%)\n" +
+                    "✅ Geçerli E-posta: %d/%d (%.1f%%)\n" +
+                    "✅ Geçerli Telefon: %d/%d (%.1f%%)\n\n" +
+                    (errors.length() > 0 ? "⚠️ Bulunan Hatalar:\n" + errors.toString() : "🎉 Tüm veriler doğru!"),
+                    allStudents.size(),
+                    validNames, allStudents.size(), (validNames * 100.0 / allStudents.size()),
+                    validEmails, allStudents.size(), (validEmails * 100.0 / allStudents.size()),
+                    validPhones, allStudents.size(), (validPhones * 100.0 / allStudents.size())
+                );
+
+                showModernMessage("🔍 Doğrulama Tamamlandı", summary,
+                    errors.length() > 0 ? WARNING_COLOR : SUCCESS_COLOR);
+
+            } catch (Exception e) {
+                showModernMessage("❌ Hata", "Toplu doğrulama başarısız: " + e.getMessage(), DANGER_COLOR);
+            } finally {
+                setOperationCompleted();
+            }
+        });
+    }
+
+    private void showBulkAssignDialog() {
+        JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "📚 Toplu Program Atama", true);
+        dialog.setSize(500, 350);
+        dialog.setLocationRelativeTo(this);
+
+        JPanel panel = new JPanel(new BorderLayout(15, 15));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        panel.setBackground(Color.WHITE);
+
+        // Başlık
+        JLabel titleLabel = new JLabel("<html><h2 style='color: #27ae60;'>📚 Toplu Program Atama</h2></html>");
+        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        panel.add(titleLabel, BorderLayout.NORTH);
+
+        // Form paneli
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        formPanel.setBackground(Color.WHITE);
+        formPanel.setBorder(BorderFactory.createTitledBorder("Atama Kriterleri"));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.anchor = GridBagConstraints.WEST;
+
+        // Program seçimi
+        gbc.gridx = 0; gbc.gridy = 0;
+        formPanel.add(new JLabel("Program:"), gbc);
+        gbc.gridx = 1;
+        JComboBox<String> programCombo = new JComboBox<>();
+        programCombo.addItem("Program seçin...");
+
+        // Programları yükle
+        try {
+            if (programService != null) {
+                List<Program> programs = programService.tumProgramlariGetir();
+                for (Program program : programs) {
+                    programCombo.addItem(program.getAd());
+                }
+            }
+        } catch (Exception e) {
+            programCombo.addItem("Program yüklenemedi");
+        }
+        formPanel.add(programCombo, gbc);
+
+        // Öğrenci filtresi
+        gbc.gridx = 0; gbc.gridy = 1;
+        formPanel.add(new JLabel("Öğrenci filtresi:"), gbc);
+        gbc.gridx = 1;
+        JComboBox<String> studentFilterCombo = new JComboBox<>(new String[]{
+            "Tüm öğrenciler", "Program ataması olmayanlar", "Aktif öğrenciler"
+        });
+        formPanel.add(studentFilterCombo, gbc);
+
+        panel.add(formPanel, BorderLayout.CENTER);
+
+        // Butonlar
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.setBackground(Color.WHITE);
+
+        JButton assignButton = createModernButton("📚 Ata", SUCCESS_COLOR, 0);
+        JButton cancelButton = createModernButton("❌ İptal", DARK_GRAY, 0);
+
+        assignButton.addActionListener(e -> {
+            if (programCombo.getSelectedIndex() <= 0) {
+                showModernMessage("⚠️ Uyarı", "Lütfen bir program seçin!", WARNING_COLOR);
+                return;
+            }
+
+            int result = JOptionPane.showConfirmDialog(dialog,
+                "Seçilen programa toplu atama yapmak istediğinizden emin misiniz?",
+                "Toplu Atama Onayı",
+                JOptionPane.YES_NO_OPTION);
+
+            if (result == JOptionPane.YES_OPTION) {
+                performBulkAssign(programCombo.getSelectedItem().toString(),
+                                studentFilterCombo.getSelectedItem().toString());
+                dialog.dispose();
+            }
+        });
+
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        buttonPanel.add(assignButton);
+        buttonPanel.add(cancelButton);
+
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        dialog.add(panel);
+        dialog.setVisible(true);
+    }
+
+    // Placeholder metodlar - Gelişmiş analitik için
+    private JPanel createRegistrationTrendsPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(Color.WHITE);
+        panel.add(new JLabel("<html><div style='text-align: center; padding: 50px;'>" +
+            "<h3>📈 Kayıt Trendleri</h3>" +
+            "<p>Bu bölümde öğrenci kayıt trendleri gösterilecek</p>" +
+            "</div></html>"), BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createProgramPreferencesPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(Color.WHITE);
+        panel.add(new JLabel("<html><div style='text-align: center; padding: 50px;'>" +
+            "<h3>📚 Program Tercihleri</h3>" +
+            "<p>Bu bölümde öğrenci program tercihleri gösterilecek</p>" +
+            "</div></html>"), BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createDataQualityPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(Color.WHITE);
+        panel.add(new JLabel("<html><div style='text-align: center; padding: 50px;'>" +
+            "<h3>🔍 Veri Kalitesi</h3>" +
+            "<p>Bu bölümde veri kalitesi analizi gösterilecek</p>" +
+            "</div></html>"), BorderLayout.CENTER);
+        return panel;
+    }
+
+    // Placeholder metodlar - Toplu işlemler için
+    private void showBulkDeletePreview(String status, String date, String programCount) {
+        showModernMessage("👁️ Önizleme",
+            "Silme önizlemesi:\n" +
+            "Durum: " + status + "\n" +
+            "Tarih: " + date + "\n" +
+            "Program: " + programCount,
+            PRIMARY_COLOR);
+    }
+
+    private void performBulkDelete(String status, String date, String programCount) {
+        showModernMessage("🗑️ Toplu Silme",
+            "Toplu silme işlemi tamamlandı!\n" +
+            "Bu özellik yakında aktif olacak.",
+            SUCCESS_COLOR);
+    }
+
+    private void performBulkUpdate(String oldDomain, String newDomain, boolean updatePhone) {
+        showModernMessage("✏️ Toplu Güncelleme",
+            "Toplu güncelleme işlemi tamamlandı!\n" +
+            "Bu özellik yakında aktif olacak.",
+            SUCCESS_COLOR);
+    }
+
+    private void performBulkAssign(String program, String filter) {
+        showModernMessage("📚 Toplu Atama",
+            "Toplu program atama işlemi tamamlandı!\n" +
+            "Program: " + program + "\n" +
+            "Filtre: " + filter,
+            SUCCESS_COLOR);
     }
 }

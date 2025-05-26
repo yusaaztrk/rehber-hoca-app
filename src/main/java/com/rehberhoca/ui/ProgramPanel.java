@@ -23,6 +23,7 @@ import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
@@ -1128,6 +1129,24 @@ private void showBulkOperationDialog() {
    JButton bulkStatusButton = createModernButton(" Toplu Durum Değişikliği", PRIMARY_COLOR, 0);
    JButton bulkCategoryButton = createModernButton(" Toplu Kategori Değişikliği", SUCCESS_COLOR, 0);
 
+   // Event listeners
+   bulkDeleteButton.addActionListener(e -> {
+       dialog.dispose();
+       showBulkDeleteDialog();
+   });
+   bulkUpdateButton.addActionListener(e -> {
+       dialog.dispose();
+       showBulkUpdateDialog();
+   });
+   bulkStatusButton.addActionListener(e -> {
+       dialog.dispose();
+       showBulkStatusDialog();
+   });
+   bulkCategoryButton.addActionListener(e -> {
+       dialog.dispose();
+       showBulkCategoryDialog();
+   });
+
    optionsPanel.add(bulkDeleteButton);
    optionsPanel.add(bulkUpdateButton);
    optionsPanel.add(bulkStatusButton);
@@ -1148,16 +1167,45 @@ private void showBulkOperationDialog() {
 }
 
 private void showAdvancedAnalytics() {
-   showModernMessage(" Gelişmiş Analitik",
-       "Program analitik raporu özellikleri:\n\n" +
-       " Kategori Dağılım Analizi\n" +
-       " Popülerlik Trendleri\n" +
-       " Zaman Bazlı Analizler\n" +
-       " Başarı Oranları\n" +
-       " Öğrenci Katılım Oranları\n" +
-       " Süre Analizi\n\n" +
-       "Yakında eklenecek...",
-       INFO_COLOR);
+    JDialog analyticsDialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "📊 Gelişmiş Program Analitikleri", true);
+    analyticsDialog.setSize(800, 600);
+    analyticsDialog.setLocationRelativeTo(this);
+
+    JPanel panel = new JPanel(new BorderLayout(15, 15));
+    panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+    panel.setBackground(Color.WHITE);
+
+    // Başlık
+    JLabel titleLabel = new JLabel("<html><h2 style='color: #8e44ad;'>📊 Gelişmiş Program Analitikleri</h2></html>");
+    titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+    panel.add(titleLabel, BorderLayout.NORTH);
+
+    // Analitik içeriği
+    JTabbedPane analyticsTabs = new JTabbedPane();
+    analyticsTabs.setFont(HEADER_FONT);
+
+    // Kategori Analizi
+    analyticsTabs.addTab("📚 Kategori Analizi", createCategoryAnalysisPanel());
+
+    // Popülerlik Analizi
+    analyticsTabs.addTab("🔥 Popülerlik Analizi", createPopularityAnalysisPanel());
+
+    // Zaman Analizi
+    analyticsTabs.addTab("📅 Zaman Analizi", createTimeAnalysisPanel());
+
+    panel.add(analyticsTabs, BorderLayout.CENTER);
+
+    // Kapat butonu
+    JButton closeButton = createModernButton("❌ Kapat", DARK_GRAY, 0);
+    closeButton.addActionListener(e -> analyticsDialog.dispose());
+
+    JPanel buttonPanel = new JPanel(new FlowLayout());
+    buttonPanel.setBackground(Color.WHITE);
+    buttonPanel.add(closeButton);
+    panel.add(buttonPanel, BorderLayout.SOUTH);
+
+    analyticsDialog.add(panel);
+    analyticsDialog.setVisible(true);
 }
 
 private void showTemplateDialog() {
@@ -1655,5 +1703,863 @@ public void dispose() {
         autoRefreshTimer.stop();
         autoRefreshTimer = null;
     }
+}
+
+// Gelişmiş İşlemler - Toplu İşlem Metodları
+private void showBulkDeleteDialog() {
+    JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "🗑️ Toplu Silme", true);
+    dialog.setSize(500, 400);
+    dialog.setLocationRelativeTo(this);
+
+    JPanel panel = new JPanel(new BorderLayout(15, 15));
+    panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+    panel.setBackground(Color.WHITE);
+
+    // Başlık
+    JLabel titleLabel = new JLabel("<html><h2 style='color: #e74c3c;'>🗑️ Toplu Program Silme</h2></html>");
+    titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+    panel.add(titleLabel, BorderLayout.NORTH);
+
+    // Seçim paneli
+    JPanel selectionPanel = new JPanel(new BorderLayout(10, 10));
+    selectionPanel.setBackground(Color.WHITE);
+    selectionPanel.setBorder(BorderFactory.createTitledBorder("Silme Kriterleri"));
+
+    JPanel criteriaPanel = new JPanel(new GridBagLayout());
+    criteriaPanel.setBackground(Color.WHITE);
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.insets = new Insets(10, 10, 10, 10);
+    gbc.anchor = GridBagConstraints.WEST;
+
+    // Durum filtresi
+    gbc.gridx = 0; gbc.gridy = 0;
+    criteriaPanel.add(new JLabel("Durum:"), gbc);
+    gbc.gridx = 1;
+    JComboBox<String> statusCombo = new JComboBox<>(new String[]{"Tümü", "Pasif", "Taslak", "Arşiv"});
+    criteriaPanel.add(statusCombo, gbc);
+
+    // Kategori filtresi
+    gbc.gridx = 0; gbc.gridy = 1;
+    criteriaPanel.add(new JLabel("Kategori:"), gbc);
+    gbc.gridx = 1;
+    JComboBox<String> categoryCombo = new JComboBox<>();
+    categoryCombo.addItem("Tümü");
+    for (String kategori : KATEGORILER) {
+        categoryCombo.addItem(kategori);
+    }
+    criteriaPanel.add(categoryCombo, gbc);
+
+    // Öğrenci sayısı filtresi
+    gbc.gridx = 0; gbc.gridy = 2;
+    criteriaPanel.add(new JLabel("Öğrenci sayısı:"), gbc);
+    gbc.gridx = 1;
+    JComboBox<String> studentCountCombo = new JComboBox<>(new String[]{"Tümü", "0 öğrenci", "1-5 öğrenci", "5+ öğrenci"});
+    criteriaPanel.add(studentCountCombo, gbc);
+
+    selectionPanel.add(criteriaPanel, BorderLayout.CENTER);
+
+    // Uyarı mesajı
+    JLabel warningLabel = new JLabel("<html><div style='color: #e74c3c; text-align: center; padding: 15px;'>" +
+        "<b>⚠️ UYARI:</b> Bu işlem geri alınamaz!<br>" +
+        "Seçilen kriterlere uyan tüm programlar kalıcı olarak silinecektir." +
+        "</div></html>");
+    warningLabel.setHorizontalAlignment(SwingConstants.CENTER);
+    selectionPanel.add(warningLabel, BorderLayout.SOUTH);
+
+    panel.add(selectionPanel, BorderLayout.CENTER);
+
+    // Butonlar
+    JPanel buttonPanel = new JPanel(new FlowLayout());
+    buttonPanel.setBackground(Color.WHITE);
+
+    JButton previewButton = createModernButton("👁️ Önizleme", WARNING_COLOR, 0);
+    JButton deleteButton = createModernButton("🗑️ Sil", DANGER_COLOR, 0);
+    JButton cancelButton = createModernButton("❌ İptal", DARK_GRAY, 0);
+
+    previewButton.addActionListener(e -> {
+        // Önizleme göster
+        showBulkDeletePreview(statusCombo.getSelectedItem().toString(),
+                            categoryCombo.getSelectedItem().toString(),
+                            studentCountCombo.getSelectedItem().toString());
+    });
+
+    deleteButton.addActionListener(e -> {
+        int result = JOptionPane.showConfirmDialog(dialog,
+            "<html><div style='color: #e74c3c; text-align: center;'>" +
+            "<h3>Son Onay</h3>" +
+            "<p>Seçilen kriterlere uyan programları silmek istediğinizden emin misiniz?</p>" +
+            "<p><b>Bu işlem geri alınamaz!</b></p>" +
+            "</div></html>",
+            "Toplu Silme Onayı",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE);
+
+        if (result == JOptionPane.YES_OPTION) {
+            performBulkDelete(statusCombo.getSelectedItem().toString(),
+                            categoryCombo.getSelectedItem().toString(),
+                            studentCountCombo.getSelectedItem().toString());
+            dialog.dispose();
+        }
+    });
+
+    cancelButton.addActionListener(e -> dialog.dispose());
+
+    buttonPanel.add(previewButton);
+    buttonPanel.add(deleteButton);
+    buttonPanel.add(cancelButton);
+
+    panel.add(buttonPanel, BorderLayout.SOUTH);
+
+    dialog.add(panel);
+    dialog.setVisible(true);
+}
+
+private void showBulkUpdateDialog() {
+    JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "✏️ Toplu Güncelleme", true);
+    dialog.setSize(600, 500);
+    dialog.setLocationRelativeTo(this);
+
+    JPanel panel = new JPanel(new BorderLayout(15, 15));
+    panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+    panel.setBackground(Color.WHITE);
+
+    // Başlık
+    JLabel titleLabel = new JLabel("<html><h2 style='color: #f39c12;'>✏️ Toplu Program Güncelleme</h2></html>");
+    titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+    panel.add(titleLabel, BorderLayout.NORTH);
+
+    // Form paneli
+    JPanel formPanel = new JPanel(new GridBagLayout());
+    formPanel.setBackground(Color.WHITE);
+    formPanel.setBorder(BorderFactory.createTitledBorder("Güncelleme Alanları"));
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.insets = new Insets(10, 10, 10, 10);
+    gbc.anchor = GridBagConstraints.WEST;
+
+    // Hangi alanların güncelleneceğini seç
+    gbc.gridx = 0; gbc.gridy = 0;
+    formPanel.add(new JLabel("Güncellenecek alanlar:"), gbc);
+
+    gbc.gridy = 1;
+    JCheckBox updateCategoryCheck = new JCheckBox("Kategori");
+    updateCategoryCheck.setBackground(Color.WHITE);
+    formPanel.add(updateCategoryCheck, gbc);
+
+    gbc.gridx = 1;
+    JComboBox<String> newCategoryCombo = new JComboBox<>(KATEGORILER);
+    newCategoryCombo.setEnabled(false);
+    formPanel.add(newCategoryCombo, gbc);
+
+    gbc.gridx = 0; gbc.gridy = 2;
+    JCheckBox updateLevelCheck = new JCheckBox("Seviye");
+    updateLevelCheck.setBackground(Color.WHITE);
+    formPanel.add(updateLevelCheck, gbc);
+
+    gbc.gridx = 1;
+    JComboBox<String> newLevelCombo = new JComboBox<>(SEVIYELER);
+    newLevelCombo.setEnabled(false);
+    formPanel.add(newLevelCombo, gbc);
+
+    gbc.gridx = 0; gbc.gridy = 3;
+    JCheckBox updateStatusCheck = new JCheckBox("Durum");
+    updateStatusCheck.setBackground(Color.WHITE);
+    formPanel.add(updateStatusCheck, gbc);
+
+    gbc.gridx = 1;
+    JComboBox<String> newStatusCombo = new JComboBox<>(DURUMLAR);
+    newStatusCombo.setEnabled(false);
+    formPanel.add(newStatusCombo, gbc);
+
+    // Checkbox event listeners
+    updateCategoryCheck.addActionListener(e -> newCategoryCombo.setEnabled(updateCategoryCheck.isSelected()));
+    updateLevelCheck.addActionListener(e -> newLevelCombo.setEnabled(updateLevelCheck.isSelected()));
+    updateStatusCheck.addActionListener(e -> newStatusCombo.setEnabled(updateStatusCheck.isSelected()));
+
+    panel.add(formPanel, BorderLayout.CENTER);
+
+    // Butonlar
+    JPanel buttonPanel = new JPanel(new FlowLayout());
+    buttonPanel.setBackground(Color.WHITE);
+
+    JButton updateButton = createModernButton("✏️ Güncelle", SUCCESS_COLOR, 0);
+    JButton cancelButton = createModernButton("❌ İptal", DARK_GRAY, 0);
+
+    updateButton.addActionListener(e -> {
+        if (!updateCategoryCheck.isSelected() && !updateLevelCheck.isSelected() && !updateStatusCheck.isSelected()) {
+            showModernMessage("⚠️ Uyarı", "Lütfen en az bir güncelleme alanı seçin!", WARNING_COLOR);
+            return;
+        }
+
+        int result = JOptionPane.showConfirmDialog(dialog,
+            "Seçili tüm programları güncellemek istediğinizden emin misiniz?",
+            "Toplu Güncelleme Onayı",
+            JOptionPane.YES_NO_OPTION);
+
+        if (result == JOptionPane.YES_OPTION) {
+            performBulkUpdate(updateCategoryCheck.isSelected() ? newCategoryCombo.getSelectedItem().toString() : null,
+                            updateLevelCheck.isSelected() ? newLevelCombo.getSelectedItem().toString() : null,
+                            updateStatusCheck.isSelected() ? newStatusCombo.getSelectedItem().toString() : null);
+            dialog.dispose();
+        }
+    });
+
+    cancelButton.addActionListener(e -> dialog.dispose());
+
+    buttonPanel.add(updateButton);
+    buttonPanel.add(cancelButton);
+
+    panel.add(buttonPanel, BorderLayout.SOUTH);
+
+    dialog.add(panel);
+    dialog.setVisible(true);
+}
+
+private void showBulkStatusDialog() {
+    JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "📊 Toplu Durum Değişikliği", true);
+    dialog.setSize(450, 300);
+    dialog.setLocationRelativeTo(this);
+
+    JPanel panel = new JPanel(new BorderLayout(15, 15));
+    panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+    panel.setBackground(Color.WHITE);
+
+    // Başlık
+    JLabel titleLabel = new JLabel("<html><h2 style='color: #3498db;'>📊 Toplu Durum Değişikliği</h2></html>");
+    titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+    panel.add(titleLabel, BorderLayout.NORTH);
+
+    // Form
+    JPanel formPanel = new JPanel(new GridBagLayout());
+    formPanel.setBackground(Color.WHITE);
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.insets = new Insets(15, 15, 15, 15);
+    gbc.anchor = GridBagConstraints.WEST;
+
+    gbc.gridx = 0; gbc.gridy = 0;
+    formPanel.add(new JLabel("Mevcut durum:"), gbc);
+    gbc.gridx = 1;
+    JComboBox<String> currentStatusCombo = new JComboBox<>(DURUMLAR);
+    formPanel.add(currentStatusCombo, gbc);
+
+    gbc.gridx = 0; gbc.gridy = 1;
+    formPanel.add(new JLabel("Yeni durum:"), gbc);
+    gbc.gridx = 1;
+    JComboBox<String> newStatusCombo = new JComboBox<>(DURUMLAR);
+    formPanel.add(newStatusCombo, gbc);
+
+    panel.add(formPanel, BorderLayout.CENTER);
+
+    // Butonlar
+    JPanel buttonPanel = new JPanel(new FlowLayout());
+    buttonPanel.setBackground(Color.WHITE);
+
+    JButton updateButton = createModernButton("📊 Güncelle", PRIMARY_COLOR, 0);
+    JButton cancelButton = createModernButton("❌ İptal", DARK_GRAY, 0);
+
+    updateButton.addActionListener(e -> {
+        String currentStatus = currentStatusCombo.getSelectedItem().toString();
+        String newStatus = newStatusCombo.getSelectedItem().toString();
+
+        if (currentStatus.equals(newStatus)) {
+            showModernMessage("⚠️ Uyarı", "Mevcut durum ile yeni durum aynı olamaz!", WARNING_COLOR);
+            return;
+        }
+
+        int result = JOptionPane.showConfirmDialog(dialog,
+            "'" + currentStatus + "' durumundaki tüm programları '" + newStatus + "' durumuna değiştirmek istediğinizden emin misiniz?",
+            "Toplu Durum Değişikliği Onayı",
+            JOptionPane.YES_NO_OPTION);
+
+        if (result == JOptionPane.YES_OPTION) {
+            performBulkStatusUpdate(currentStatus, newStatus);
+            dialog.dispose();
+        }
+    });
+
+    cancelButton.addActionListener(e -> dialog.dispose());
+
+    buttonPanel.add(updateButton);
+    buttonPanel.add(cancelButton);
+
+    panel.add(buttonPanel, BorderLayout.SOUTH);
+
+    dialog.add(panel);
+    dialog.setVisible(true);
+}
+
+private void showBulkCategoryDialog() {
+    JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "📚 Toplu Kategori Değişikliği", true);
+    dialog.setSize(450, 300);
+    dialog.setLocationRelativeTo(this);
+
+    JPanel panel = new JPanel(new BorderLayout(15, 15));
+    panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+    panel.setBackground(Color.WHITE);
+
+    // Başlık
+    JLabel titleLabel = new JLabel("<html><h2 style='color: #27ae60;'>📚 Toplu Kategori Değişikliği</h2></html>");
+    titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+    panel.add(titleLabel, BorderLayout.NORTH);
+
+    // Form
+    JPanel formPanel = new JPanel(new GridBagLayout());
+    formPanel.setBackground(Color.WHITE);
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.insets = new Insets(15, 15, 15, 15);
+    gbc.anchor = GridBagConstraints.WEST;
+
+    gbc.gridx = 0; gbc.gridy = 0;
+    formPanel.add(new JLabel("Mevcut kategori:"), gbc);
+    gbc.gridx = 1;
+    JComboBox<String> currentCategoryCombo = new JComboBox<>(KATEGORILER);
+    formPanel.add(currentCategoryCombo, gbc);
+
+    gbc.gridx = 0; gbc.gridy = 1;
+    formPanel.add(new JLabel("Yeni kategori:"), gbc);
+    gbc.gridx = 1;
+    JComboBox<String> newCategoryCombo = new JComboBox<>(KATEGORILER);
+    formPanel.add(newCategoryCombo, gbc);
+
+    panel.add(formPanel, BorderLayout.CENTER);
+
+    // Butonlar
+    JPanel buttonPanel = new JPanel(new FlowLayout());
+    buttonPanel.setBackground(Color.WHITE);
+
+    JButton updateButton = createModernButton("📚 Güncelle", SUCCESS_COLOR, 0);
+    JButton cancelButton = createModernButton("❌ İptal", DARK_GRAY, 0);
+
+    updateButton.addActionListener(e -> {
+        String currentCategory = currentCategoryCombo.getSelectedItem().toString();
+        String newCategory = newCategoryCombo.getSelectedItem().toString();
+
+        if (currentCategory.equals(newCategory)) {
+            showModernMessage("⚠️ Uyarı", "Mevcut kategori ile yeni kategori aynı olamaz!", WARNING_COLOR);
+            return;
+        }
+
+        int result = JOptionPane.showConfirmDialog(dialog,
+            "'" + currentCategory + "' kategorisindeki tüm programları '" + newCategory + "' kategorisine değiştirmek istediğinizden emin misiniz?",
+            "Toplu Kategori Değişikliği Onayı",
+            JOptionPane.YES_NO_OPTION);
+
+        if (result == JOptionPane.YES_OPTION) {
+            performBulkCategoryUpdate(currentCategory, newCategory);
+            dialog.dispose();
+        }
+    });
+
+    cancelButton.addActionListener(e -> dialog.dispose());
+
+    buttonPanel.add(updateButton);
+    buttonPanel.add(cancelButton);
+
+    panel.add(buttonPanel, BorderLayout.SOUTH);
+
+    dialog.add(panel);
+    dialog.setVisible(true);
+}
+
+// Toplu işlem metodları
+private void showBulkDeletePreview(String status, String category, String studentCount) {
+    try {
+        List<Program> allPrograms = programService.tumProgramlariGetir();
+        List<Program> filteredPrograms = allPrograms.stream()
+            .filter(p -> matchesCriteria(p, status, category, studentCount))
+            .collect(Collectors.toList());
+
+        JDialog previewDialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "👁️ Silme Önizlemesi", true);
+        previewDialog.setSize(700, 500);
+        previewDialog.setLocationRelativeTo(this);
+
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        panel.setBackground(Color.WHITE);
+
+        // Başlık
+        JLabel titleLabel = new JLabel("<html><h2 style='color: #e74c3c;'>👁️ Silinecek Programlar (" + filteredPrograms.size() + " adet)</h2></html>");
+        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        panel.add(titleLabel, BorderLayout.NORTH);
+
+        // Tablo
+        String[] columns = {"Program Adı", "Kategori", "Seviye", "Durum", "Öğrenci Sayısı"};
+        DefaultTableModel previewModel = new DefaultTableModel(columns, 0);
+
+        for (Program program : filteredPrograms) {
+            int studentCount2 = 0;
+            try {
+                if (ogrenciService != null) {
+                    studentCount2 = ogrenciService.programaKayitliOgrenciSayisi(program.getId());
+                }
+            } catch (Exception e) {
+                // Ignore
+            }
+
+            Object[] row = {
+                program.getAd(),
+                program.getKategori(),
+                program.getSeviye(),
+                program.getDurum(),
+                studentCount2
+            };
+            previewModel.addRow(row);
+        }
+
+        JTable previewTable = new JTable(previewModel);
+        previewTable.setRowHeight(30);
+        previewTable.setFont(NORMAL_FONT);
+        JScrollPane scrollPane = new JScrollPane(previewTable);
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        // Buton
+        JButton closeButton = createModernButton("❌ Kapat", DARK_GRAY, 0);
+        closeButton.addActionListener(e -> previewDialog.dispose());
+
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.setBackground(Color.WHITE);
+        buttonPanel.add(closeButton);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        previewDialog.add(panel);
+        previewDialog.setVisible(true);
+
+    } catch (Exception e) {
+        showModernMessage("❌ Hata", "Önizleme oluşturulamadı: " + e.getMessage(), DANGER_COLOR);
+    }
+}
+
+private void performBulkDelete(String status, String category, String studentCount) {
+    setOperationInProgress("Toplu silme işlemi yapılıyor...");
+
+    SwingUtilities.invokeLater(() -> {
+        try {
+            List<Program> allPrograms = programService.tumProgramlariGetir();
+            List<Program> toDelete = allPrograms.stream()
+                .filter(p -> matchesCriteria(p, status, category, studentCount))
+                .collect(Collectors.toList());
+
+            int deletedCount = 0;
+            for (Program program : toDelete) {
+                try {
+                    programService.programSil(program.getId());
+                    deletedCount++;
+                } catch (Exception e) {
+                    System.err.println("Program silme hatası: " + program.getAd() + " - " + e.getMessage());
+                }
+            }
+
+            showModernMessage("✅ Başarılı",
+                deletedCount + " program başarıyla silindi!\n" +
+                (toDelete.size() - deletedCount > 0 ?
+                    (toDelete.size() - deletedCount) + " program silinemedi." : ""),
+                SUCCESS_COLOR);
+
+            loadData();
+            updateModernStats();
+
+        } catch (Exception e) {
+            showModernMessage("❌ Hata", "Toplu silme işlemi başarısız: " + e.getMessage(), DANGER_COLOR);
+        } finally {
+            setOperationCompleted();
+        }
+    });
+}
+
+private void performBulkUpdate(String newCategory, String newLevel, String newStatus) {
+    setOperationInProgress("Toplu güncelleme işlemi yapılıyor...");
+
+    SwingUtilities.invokeLater(() -> {
+        try {
+            List<Program> allPrograms = programService.tumProgramlariGetir();
+            int updatedCount = 0;
+
+            for (Program program : allPrograms) {
+                boolean updated = false;
+
+                if (newCategory != null && !newCategory.equals(program.getKategori())) {
+                    program.setKategori(newCategory);
+                    updated = true;
+                }
+
+                if (newLevel != null && !newLevel.equals(program.getSeviye())) {
+                    program.setSeviye(newLevel);
+                    updated = true;
+                }
+
+                if (newStatus != null && !newStatus.equals(program.getDurum())) {
+                    program.setDurum(newStatus);
+                    updated = true;
+                }
+
+                if (updated) {
+                    try {
+                        programService.programGuncelle(program);
+                        updatedCount++;
+                    } catch (Exception e) {
+                        System.err.println("Program güncelleme hatası: " + program.getAd() + " - " + e.getMessage());
+                    }
+                }
+            }
+
+            showModernMessage("✅ Başarılı",
+                updatedCount + " program başarıyla güncellendi!",
+                SUCCESS_COLOR);
+
+            loadData();
+            updateModernStats();
+
+        } catch (Exception e) {
+            showModernMessage("❌ Hata", "Toplu güncelleme işlemi başarısız: " + e.getMessage(), DANGER_COLOR);
+        } finally {
+            setOperationCompleted();
+        }
+    });
+}
+
+private void performBulkStatusUpdate(String currentStatus, String newStatus) {
+    setOperationInProgress("Durum güncelleme işlemi yapılıyor...");
+
+    SwingUtilities.invokeLater(() -> {
+        try {
+            List<Program> allPrograms = programService.tumProgramlariGetir();
+            int updatedCount = 0;
+
+            for (Program program : allPrograms) {
+                if (currentStatus.equals(program.getDurum())) {
+                    program.setDurum(newStatus);
+                    try {
+                        programService.programGuncelle(program);
+                        updatedCount++;
+                    } catch (Exception e) {
+                        System.err.println("Program durum güncelleme hatası: " + program.getAd() + " - " + e.getMessage());
+                    }
+                }
+            }
+
+            showModernMessage("✅ Başarılı",
+                updatedCount + " programın durumu '" + newStatus + "' olarak güncellendi!",
+                SUCCESS_COLOR);
+
+            loadData();
+            updateModernStats();
+
+        } catch (Exception e) {
+            showModernMessage("❌ Hata", "Durum güncelleme işlemi başarısız: " + e.getMessage(), DANGER_COLOR);
+        } finally {
+            setOperationCompleted();
+        }
+    });
+}
+
+private void performBulkCategoryUpdate(String currentCategory, String newCategory) {
+    setOperationInProgress("Kategori güncelleme işlemi yapılıyor...");
+
+    SwingUtilities.invokeLater(() -> {
+        try {
+            List<Program> allPrograms = programService.tumProgramlariGetir();
+            int updatedCount = 0;
+
+            for (Program program : allPrograms) {
+                if (currentCategory.equals(program.getKategori())) {
+                    program.setKategori(newCategory);
+                    try {
+                        programService.programGuncelle(program);
+                        updatedCount++;
+                    } catch (Exception e) {
+                        System.err.println("Program kategori güncelleme hatası: " + program.getAd() + " - " + e.getMessage());
+                    }
+                }
+            }
+
+            showModernMessage("✅ Başarılı",
+                updatedCount + " programın kategorisi '" + newCategory + "' olarak güncellendi!",
+                SUCCESS_COLOR);
+
+            loadData();
+            updateModernStats();
+
+        } catch (Exception e) {
+            showModernMessage("❌ Hata", "Kategori güncelleme işlemi başarısız: " + e.getMessage(), DANGER_COLOR);
+        } finally {
+            setOperationCompleted();
+        }
+    });
+}
+
+private boolean matchesCriteria(Program program, String status, String category, String studentCount) {
+    // Durum kontrolü
+    if (!"Tümü".equals(status) && !status.equals(program.getDurum())) {
+        return false;
+    }
+
+    // Kategori kontrolü
+    if (!"Tümü".equals(category) && !category.equals(program.getKategori())) {
+        return false;
+    }
+
+    // Öğrenci sayısı kontrolü
+    if (!"Tümü".equals(studentCount)) {
+        int count = 0;
+        try {
+            if (ogrenciService != null) {
+                count = ogrenciService.programaKayitliOgrenciSayisi(program.getId());
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+
+        switch (studentCount) {
+            case "0 öğrenci":
+                if (count != 0) return false;
+                break;
+            case "1-5 öğrenci":
+                if (count < 1 || count > 5) return false;
+                break;
+            case "5+ öğrenci":
+                if (count < 5) return false;
+                break;
+        }
+    }
+
+    return true;
+}
+
+// Analitik panel metodları
+private JPanel createCategoryAnalysisPanel() {
+    JPanel panel = new JPanel(new BorderLayout(10, 10));
+    panel.setBackground(Color.WHITE);
+    panel.setBorder(new EmptyBorder(15, 15, 15, 15));
+
+    try {
+        List<Program> allPrograms = programService.tumProgramlariGetir();
+
+        // Kategori dağılımı
+        StringBuilder analysis = new StringBuilder();
+        analysis.append("<html><div style='font-family: Segoe UI; padding: 20px;'>");
+        analysis.append("<h3 style='color: #3498db;'>📚 Kategori Dağılım Analizi</h3>");
+        analysis.append("<table border='1' cellpadding='10' style='border-collapse: collapse; width: 100%;'>");
+        analysis.append("<tr style='background-color: #3498db; color: white;'>");
+        analysis.append("<th>Kategori</th><th>Program Sayısı</th><th>Yüzde</th><th>Ortalama Süre</th></tr>");
+
+        for (String kategori : KATEGORILER) {
+            List<Program> categoryPrograms = allPrograms.stream()
+                .filter(p -> kategori.equals(p.getKategori()))
+                .collect(Collectors.toList());
+
+            int count = categoryPrograms.size();
+            double percentage = allPrograms.isEmpty() ? 0 : (count * 100.0 / allPrograms.size());
+            double avgDuration = categoryPrograms.stream()
+                .filter(p -> p.getSure() != null)
+                .mapToInt(Program::getSure)
+                .average().orElse(0.0);
+
+            String rowColor = count > 0 ? "#ecf0f1" : "#ffffff";
+            analysis.append("<tr style='background-color: ").append(rowColor).append(";'>");
+            analysis.append("<td><b>").append(kategori).append("</b></td>");
+            analysis.append("<td>").append(count).append("</td>");
+            analysis.append("<td>").append(String.format("%.1f%%", percentage)).append("</td>");
+            analysis.append("<td>").append(String.format("%.1f hafta", avgDuration)).append("</td>");
+            analysis.append("</tr>");
+        }
+
+        analysis.append("</table>");
+
+        // En popüler kategori
+        String mostPopular = allPrograms.stream()
+            .collect(Collectors.groupingBy(Program::getKategori, Collectors.counting()))
+            .entrySet().stream()
+            .max((e1, e2) -> e1.getValue().compareTo(e2.getValue()))
+            .map(entry -> entry.getKey() + " (" + entry.getValue() + " program)")
+            .orElse("Veri yok");
+
+        analysis.append("<br><h4 style='color: #e67e22;'>🏆 En Popüler Kategori: ").append(mostPopular).append("</h4>");
+        analysis.append("</div></html>");
+
+        JLabel analysisLabel = new JLabel(analysis.toString());
+        panel.add(new JScrollPane(analysisLabel), BorderLayout.CENTER);
+
+    } catch (Exception e) {
+        JLabel errorLabel = new JLabel("❌ Kategori analizi yüklenemedi: " + e.getMessage());
+        errorLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        panel.add(errorLabel, BorderLayout.CENTER);
+    }
+
+    return panel;
+}
+
+private JPanel createPopularityAnalysisPanel() {
+    JPanel panel = new JPanel(new BorderLayout(10, 10));
+    panel.setBackground(Color.WHITE);
+    panel.setBorder(new EmptyBorder(15, 15, 15, 15));
+
+    try {
+        List<Program> allPrograms = programService.tumProgramlariGetir();
+
+        StringBuilder analysis = new StringBuilder();
+        analysis.append("<html><div style='font-family: Segoe UI; padding: 20px;'>");
+        analysis.append("<h3 style='color: #e74c3c;'>🔥 Program Popülerlik Analizi</h3>");
+        analysis.append("<table border='1' cellpadding='10' style='border-collapse: collapse; width: 100%;'>");
+        analysis.append("<tr style='background-color: #e74c3c; color: white;'>");
+        analysis.append("<th>Program Adı</th><th>Kategori</th><th>Öğrenci Sayısı</th><th>Popülerlik</th></tr>");
+
+        // Programları öğrenci sayısına göre sırala
+        List<Program> sortedPrograms = allPrograms.stream()
+            .sorted((p1, p2) -> {
+                int count1 = 0, count2 = 0;
+                try {
+                    if (ogrenciService != null) {
+                        count1 = ogrenciService.programaKayitliOgrenciSayisi(p1.getId());
+                        count2 = ogrenciService.programaKayitliOgrenciSayisi(p2.getId());
+                    }
+                } catch (Exception e) {
+                    // Ignore
+                }
+                return Integer.compare(count2, count1); // Descending
+            })
+            .limit(10) // Top 10
+            .collect(Collectors.toList());
+
+        for (Program program : sortedPrograms) {
+            int studentCount = 0;
+            try {
+                if (ogrenciService != null) {
+                    studentCount = ogrenciService.programaKayitliOgrenciSayisi(program.getId());
+                }
+            } catch (Exception e) {
+                // Ignore
+            }
+
+            String popularity;
+            String rowColor;
+            if (studentCount >= 10) {
+                popularity = "🔥 Çok Popüler";
+                rowColor = "#d5f4e6";
+            } else if (studentCount >= 5) {
+                popularity = "⭐ Popüler";
+                rowColor = "#fef9e7";
+            } else if (studentCount > 0) {
+                popularity = "📈 Orta";
+                rowColor = "#ebf3fd";
+            } else {
+                popularity = "😴 Düşük";
+                rowColor = "#fdedec";
+            }
+
+            analysis.append("<tr style='background-color: ").append(rowColor).append(";'>");
+            analysis.append("<td><b>").append(program.getAd()).append("</b></td>");
+            analysis.append("<td>").append(program.getKategori()).append("</td>");
+            analysis.append("<td>").append(studentCount).append("</td>");
+            analysis.append("<td>").append(popularity).append("</td>");
+            analysis.append("</tr>");
+        }
+
+        analysis.append("</table>");
+        analysis.append("</div></html>");
+
+        JLabel analysisLabel = new JLabel(analysis.toString());
+        panel.add(new JScrollPane(analysisLabel), BorderLayout.CENTER);
+
+    } catch (Exception e) {
+        JLabel errorLabel = new JLabel("❌ Popülerlik analizi yüklenemedi: " + e.getMessage());
+        errorLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        panel.add(errorLabel, BorderLayout.CENTER);
+    }
+
+    return panel;
+}
+
+private JPanel createTimeAnalysisPanel() {
+    JPanel panel = new JPanel(new BorderLayout(10, 10));
+    panel.setBackground(Color.WHITE);
+    panel.setBorder(new EmptyBorder(15, 15, 15, 15));
+
+    try {
+        List<Program> allPrograms = programService.tumProgramlariGetir();
+
+        StringBuilder analysis = new StringBuilder();
+        analysis.append("<html><div style='font-family: Segoe UI; padding: 20px;'>");
+        analysis.append("<h3 style='color: #9b59b6;'>📅 Zaman Bazlı Program Analizi</h3>");
+
+        // Bu ay, bu yıl istatistikleri
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime thisMonth = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
+        LocalDateTime thisYear = now.withDayOfYear(1).withHour(0).withMinute(0).withSecond(0);
+
+        long thisMonthCount = allPrograms.stream()
+            .filter(p -> p.getOlusturmaTarihi().isAfter(thisMonth))
+            .count();
+
+        long thisYearCount = allPrograms.stream()
+            .filter(p -> p.getOlusturmaTarihi().isAfter(thisYear))
+            .count();
+
+        analysis.append("<table border='1' cellpadding='15' style='border-collapse: collapse; width: 100%; margin-bottom: 20px;'>");
+        analysis.append("<tr style='background-color: #9b59b6; color: white;'>");
+        analysis.append("<th>Zaman Dilimi</th><th>Program Sayısı</th><th>Açıklama</th></tr>");
+
+        analysis.append("<tr style='background-color: #f8f9fa;'>");
+        analysis.append("<td><b>Bu Ay</b></td>");
+        analysis.append("<td>").append(thisMonthCount).append("</td>");
+        analysis.append("<td>").append(now.getMonth().name()).append(" ").append(now.getYear()).append(" ayında oluşturulan</td>");
+        analysis.append("</tr>");
+
+        analysis.append("<tr style='background-color: #ffffff;'>");
+        analysis.append("<td><b>Bu Yıl</b></td>");
+        analysis.append("<td>").append(thisYearCount).append("</td>");
+        analysis.append("<td>").append(now.getYear()).append(" yılında oluşturulan</td>");
+        analysis.append("</tr>");
+
+        analysis.append("<tr style='background-color: #f8f9fa;'>");
+        analysis.append("<td><b>Toplam</b></td>");
+        analysis.append("<td>").append(allPrograms.size()).append("</td>");
+        analysis.append("<td>Sistemde kayıtlı tüm programlar</td>");
+        analysis.append("</tr>");
+
+        analysis.append("</table>");
+
+        // Süre analizi
+        analysis.append("<h4 style='color: #34495e;'>⏱️ Program Süre Analizi</h4>");
+        analysis.append("<table border='1' cellpadding='10' style='border-collapse: collapse; width: 100%;'>");
+        analysis.append("<tr style='background-color: #34495e; color: white;'>");
+        analysis.append("<th>Süre Aralığı</th><th>Program Sayısı</th><th>Yüzde</th></tr>");
+
+        String[] durationRanges = {"1-4 hafta", "5-8 hafta", "9-12 hafta", "13+ hafta"};
+        for (String range : durationRanges) {
+            long count = allPrograms.stream()
+                .filter(p -> p.getSure() != null)
+                .filter(p -> {
+                    int sure = p.getSure();
+                    switch (range) {
+                        case "1-4 hafta": return sure >= 1 && sure <= 4;
+                        case "5-8 hafta": return sure >= 5 && sure <= 8;
+                        case "9-12 hafta": return sure >= 9 && sure <= 12;
+                        case "13+ hafta": return sure >= 13;
+                        default: return false;
+                    }
+                })
+                .count();
+
+            double percentage = allPrograms.isEmpty() ? 0 : (count * 100.0 / allPrograms.size());
+
+            analysis.append("<tr style='background-color: #ecf0f1;'>");
+            analysis.append("<td>").append(range).append("</td>");
+            analysis.append("<td>").append(count).append("</td>");
+            analysis.append("<td>").append(String.format("%.1f%%", percentage)).append("</td>");
+            analysis.append("</tr>");
+        }
+
+        analysis.append("</table>");
+        analysis.append("</div></html>");
+
+        JLabel analysisLabel = new JLabel(analysis.toString());
+        panel.add(new JScrollPane(analysisLabel), BorderLayout.CENTER);
+
+    } catch (Exception e) {
+        JLabel errorLabel = new JLabel("❌ Zaman analizi yüklenemedi: " + e.getMessage());
+        errorLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        panel.add(errorLabel, BorderLayout.CENTER);
+    }
+
+    return panel;
 }
 }

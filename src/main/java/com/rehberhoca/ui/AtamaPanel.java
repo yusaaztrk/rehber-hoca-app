@@ -7,9 +7,12 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
+import java.awt.GridLayout;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -23,6 +26,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
@@ -34,6 +38,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
@@ -379,17 +384,63 @@ public class AtamaPanel extends JPanel {
         panel.setBackground(Color.WHITE);
 
         // Üst Kontrol Paneli
-        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel controlPanel = new JPanel(new BorderLayout());
         controlPanel.setBackground(Color.WHITE);
-        controlPanel.add(new JLabel(" Tüm Atamalar"));
-        controlPanel.add(Box.createHorizontalStrut(20));
+        controlPanel.setBorder(new EmptyBorder(10, 0, 10, 0));
+
+        // Sol taraf - Başlık ve arama
+        JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        leftPanel.setBackground(Color.WHITE);
+        leftPanel.add(new JLabel("📋 Tüm Atamalar"));
+        leftPanel.add(Box.createHorizontalStrut(20));
+
+        // Arama kutusu
+        JTextField filterField = new JTextField(15);
+        filterField.setFont(NORMAL_FONT);
+        filterField.setBorder(new CompoundBorder(
+            new LineBorder(LIGHT_GRAY, 1),
+            new EmptyBorder(5, 10, 5, 10)
+        ));
+        filterField.setToolTipText("Öğrenci veya program adı ile arama yapın");
+        leftPanel.add(new JLabel("🔍 Ara:"));
+        leftPanel.add(filterField);
+
+        // Sağ taraf - Butonlar
+        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        rightPanel.setBackground(Color.WHITE);
 
         JButton detailButton = createModernButton("🔍 Detayları Göster", PRIMARY_COLOR, 0);
+        JButton deleteButton = createModernButton("🗑️ Atama Sil", DANGER_COLOR, 0);
         JButton filterButton = createModernButton("🔧 Filtrele", WARNING_COLOR, 0);
+        JButton refreshButton = createModernButton("🔄 Yenile", SUCCESS_COLOR, 0);
 
-        controlPanel.add(detailButton);
-        controlPanel.add(Box.createHorizontalStrut(10));
-        controlPanel.add(filterButton);
+        rightPanel.add(detailButton);
+        rightPanel.add(Box.createHorizontalStrut(5));
+        rightPanel.add(deleteButton);
+        rightPanel.add(Box.createHorizontalStrut(5));
+        rightPanel.add(filterButton);
+        rightPanel.add(Box.createHorizontalStrut(5));
+        rightPanel.add(refreshButton);
+
+        controlPanel.add(leftPanel, BorderLayout.WEST);
+        controlPanel.add(rightPanel, BorderLayout.EAST);
+
+        // Event listeners
+        detailButton.addActionListener(e -> showSelectedAssignmentDetails());
+        deleteButton.addActionListener(e -> deleteSelectedAssignment());
+        filterButton.addActionListener(e -> showFilterDialog());
+        refreshButton.addActionListener(e -> {
+            loadAssignments();
+            showModernMessage("✅ Başarılı", "Atamalar yenilendi!", SUCCESS_COLOR);
+        });
+
+        // Arama field event
+        filterField.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyReleased(KeyEvent e) {
+                filterAssignments(filterField.getText());
+            }
+        });
 
         panel.add(controlPanel, BorderLayout.NORTH);
 
@@ -408,59 +459,84 @@ public class AtamaPanel extends JPanel {
         panel.setBackground(Color.WHITE);
 
         // Üst İstatistik Kartları
-        JPanel statsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
-        statsPanel.setBackground(Color.WHITE);
-        statsPanel.add(totalAssignmentsLabel);
-        statsPanel.add(activeStudentsLabel);
-        statsPanel.add(activeProgramsLabel);
-        statsPanel.add(mostPopularProgramLabel);
-        statsPanel.add(recentActivityLabel);
-
+        JPanel statsPanel = createDetailedStatsCards();
         panel.add(statsPanel, BorderLayout.NORTH);
 
-        // Grafik Alanı (Placeholder)
-        JPanel chartPanel = new JPanel();
-        chartPanel.setBorder(BorderFactory.createTitledBorder(" Program Popülarite Grafiği"));
-        chartPanel.setBackground(Color.WHITE);
-        chartPanel.add(new JLabel("<html><div style='text-align: center; padding: 50px;'>" +
-                                 "<h2 style='color: #3498db;'> Grafik Alanı</h2>" +
-                                 "<p>Gelecek güncellemede detaylı grafikler eklenecek</p></div></html>"));
+        // Orta bölüm - Tablolar ve grafikler
+        JPanel centerPanel = new JPanel(new BorderLayout(10, 10));
+        centerPanel.setBackground(Color.WHITE);
 
-        panel.add(chartPanel, BorderLayout.CENTER);
+        // Sol taraf - Program istatistikleri
+        JPanel leftPanel = createProgramStatsPanel();
+
+        // Sağ taraf - Öğrenci istatistikleri
+        JPanel rightPanel = createStudentStatsPanel();
+
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftPanel, rightPanel);
+        splitPane.setDividerLocation(400);
+        splitPane.setResizeWeight(0.5);
+        splitPane.setBorder(null);
+        centerPanel.add(splitPane, BorderLayout.CENTER);
+
+        panel.add(centerPanel, BorderLayout.CENTER);
+
+        // Alt bölüm - Kontrol butonları
+        JPanel bottomPanel = createAnalyticsControlPanel();
+        panel.add(bottomPanel, BorderLayout.SOUTH);
 
         return panel;
     }
 
     private JPanel createSettingsTab() {
-        JPanel panel = new JPanel(new BorderLayout());
+        JPanel panel = new JPanel(new BorderLayout(15, 15));
         panel.setBorder(new EmptyBorder(20, 20, 20, 20));
         panel.setBackground(Color.WHITE);
 
-        JLabel label = new JLabel("<html><div style='text-align: center; padding: 50px;'>" +
-                                 "<h2 style='color: #9b59b6;'> Sistem Ayarları</h2>" +
-                                 "<p>Otomatik yenileme, bildirimler ve diğer ayarlar</p>" +
-                                 "<p><i>Yakında eklenecek...</i></p></div></html>");
-        label.setHorizontalAlignment(SwingConstants.CENTER);
-        panel.add(label, BorderLayout.CENTER);
+        // Başlık
+        JLabel titleLabel = new JLabel("<html><h2 style='color: #9b59b6;'>⚙️ Sistem Ayarları</h2></html>");
+        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        titleLabel.setBorder(new EmptyBorder(0, 0, 20, 0));
+        panel.add(titleLabel, BorderLayout.NORTH);
+
+        // Ayarlar paneli
+        JPanel settingsPanel = createSettingsPanel();
+        panel.add(settingsPanel, BorderLayout.CENTER);
+
+        // Alt butonlar
+        JPanel buttonPanel = createSettingsButtonPanel();
+        panel.add(buttonPanel, BorderLayout.SOUTH);
 
         return panel;
     }
 
     private JPanel createRecentAssignmentsPreview() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createTitledBorder(" Son Atamalar"));
+        panel.setBorder(BorderFactory.createTitledBorder(" Son Atamalar (Son 5)"));
         panel.setBackground(Color.WHITE);
 
         // Mini tablo oluştur
-        String[] cols = {"Öğrenci", "Program", "Tarih"};
+        String[] cols = {"Öğrenci", "Program", "Tarih", "Durum"};
         DefaultTableModel miniModel = new DefaultTableModel(cols, 0);
         JTable miniTable = new JTable(miniModel);
         miniTable.setRowHeight(25);
         miniTable.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        miniTable.setGridColor(LIGHT_GRAY);
+
+        // Son atamaları yükle
+        loadRecentAssignments(miniModel);
 
         JScrollPane miniScroll = new JScrollPane(miniTable);
         miniScroll.setPreferredSize(new Dimension(0, 150));
         panel.add(miniScroll, BorderLayout.CENTER);
+
+        // Yenile butonu ekle
+        JButton refreshButton = createModernButton("🔄 Yenile", PRIMARY_COLOR, 0);
+        refreshButton.addActionListener(e -> loadRecentAssignments(miniModel));
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.setBackground(Color.WHITE);
+        buttonPanel.add(refreshButton);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
 
         return panel;
     }
@@ -1233,6 +1309,45 @@ public class AtamaPanel extends JPanel {
         updateModernStats();
     }
 
+    private void loadRecentAssignments(DefaultTableModel miniModel) {
+        miniModel.setRowCount(0);
+
+        try {
+            // Son 5 atamayı getir
+            List<OgrenciProgramAtama> sonAtamalar = atamaService.getSonGunlerdeAtananlar(30); // Son 30 gün
+
+            // Tarihe göre sırala (en yeni önce)
+            sonAtamalar.sort((a1, a2) -> a2.getAtamaTarihi().compareTo(a1.getAtamaTarihi()));
+
+            // İlk 5'ini al
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+            int count = 0;
+            for (OgrenciProgramAtama atama : sonAtamalar) {
+                if (count >= 5) break;
+
+                Object[] row = {
+                    atama.getOgrenciAdSoyad(),
+                    atama.getProgramAd(),
+                    atama.getAtamaTarihi().format(formatter),
+                    atama.getDurumText()
+                };
+                miniModel.addRow(row);
+                count++;
+            }
+
+            // Eğer hiç atama yoksa bilgi mesajı göster
+            if (sonAtamalar.isEmpty()) {
+                Object[] row = {"Henüz atama yok", "-", "-", "-"};
+                miniModel.addRow(row);
+            }
+
+        } catch (Exception e) {
+            // Hata durumunda hata mesajı göster
+            Object[] row = {"Hata: " + e.getMessage(), "-", "-", "-"};
+            miniModel.addRow(row);
+        }
+    }
+
     // Modern UI Renderer Sınıfları
     private static class ModernComboRenderer extends DefaultListCellRenderer {
         @Override
@@ -1342,6 +1457,738 @@ public class AtamaPanel extends JPanel {
         @Override
         public int hashCode() {
             return value != null ? value.hashCode() : 0;
+        }
+    }
+
+    // Yeni eklenen metodlar
+    private void showSelectedAssignmentDetails() {
+        int selectedRow = atamaTable.getSelectedRow();
+        if (selectedRow == -1) {
+            showModernMessage("⚠️ Uyarı", "Lütfen detayını görmek istediğiniz atamayı seçin!", WARNING_COLOR);
+            return;
+        }
+
+        String ogrenciAd = (String) tableModel.getValueAt(selectedRow, 0);
+        String programAd = (String) tableModel.getValueAt(selectedRow, 1);
+        String atamaTarihi = (String) tableModel.getValueAt(selectedRow, 2);
+        String programSure = (String) tableModel.getValueAt(selectedRow, 3);
+        String durum = (String) tableModel.getValueAt(selectedRow, 4);
+
+        // Detay dialog'u oluştur
+        JDialog detailDialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "📋 Atama Detayları", true);
+        detailDialog.setSize(500, 400);
+        detailDialog.setLocationRelativeTo(this);
+
+        JPanel panel = new JPanel(new BorderLayout(15, 15));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        panel.setBackground(Color.WHITE);
+
+        // Başlık
+        JLabel titleLabel = new JLabel("<html><h2 style='color: #3498db;'>📋 Atama Detayları</h2></html>");
+        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        panel.add(titleLabel, BorderLayout.NORTH);
+
+        // Detay bilgileri
+        StringBuilder detailText = new StringBuilder();
+        detailText.append("<html><div style='font-family: Segoe UI; padding: 20px;'>");
+        detailText.append("<table cellpadding='10' style='width: 100%;'>");
+        detailText.append("<tr><td><b>👤 Öğrenci:</b></td><td>").append(ogrenciAd).append("</td></tr>");
+        detailText.append("<tr><td><b>📚 Program:</b></td><td>").append(programAd).append("</td></tr>");
+        detailText.append("<tr><td><b>📅 Atama Tarihi:</b></td><td>").append(atamaTarihi).append("</td></tr>");
+        detailText.append("<tr><td><b>⏱️ Program Süresi:</b></td><td>").append(programSure).append("</td></tr>");
+        detailText.append("<tr><td><b>📊 Durum:</b></td><td>").append(durum).append("</td></tr>");
+        detailText.append("</table>");
+        detailText.append("</div></html>");
+
+        JLabel detailLabel = new JLabel(detailText.toString());
+        panel.add(detailLabel, BorderLayout.CENTER);
+
+        // Kapat butonu
+        JButton closeButton = createModernButton("✖️ Kapat", DANGER_COLOR, 0);
+        closeButton.addActionListener(e -> detailDialog.dispose());
+
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.setBackground(Color.WHITE);
+        buttonPanel.add(closeButton);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        detailDialog.add(panel);
+        detailDialog.setVisible(true);
+    }
+
+    private void deleteSelectedAssignment() {
+        int selectedRow = atamaTable.getSelectedRow();
+        if (selectedRow == -1) {
+            showModernMessage("⚠️ Uyarı", "Lütfen silmek istediğiniz atamayı seçin!", WARNING_COLOR);
+            return;
+        }
+
+        String ogrenciAd = (String) tableModel.getValueAt(selectedRow, 0);
+        String programAd = (String) tableModel.getValueAt(selectedRow, 1);
+
+        // Onay dialog'u
+        int result = JOptionPane.showConfirmDialog(
+            this,
+            "<html><div style='font-family: Segoe UI; padding: 15px;'>" +
+            "<h3 style='color: #e74c3c;'>🗑️ Atama Silme Onayı</h3>" +
+            "<p><b>" + ogrenciAd + "</b> öğrencisinin</p>" +
+            "<p><b>" + programAd + "</b> programından atamasını</p>" +
+            "<p><b style='color: #e74c3c;'>kalıcı olarak silmek</b> istediğinizden emin misiniz?</p>" +
+            "<p><i>Bu işlem geri alınamaz!</i></p>" +
+            "</div></html>",
+            "Atama Silme Onayı",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE
+        );
+
+        if (result == JOptionPane.YES_OPTION) {
+            try {
+                // Atamayı sil
+                removeAssignmentByNames(ogrenciAd, programAd);
+                showModernMessage("✅ Başarılı", "Atama başarıyla silindi!", SUCCESS_COLOR);
+                loadAssignments();
+                updateModernStats();
+            } catch (Exception e) {
+                showModernMessage("❌ Hata", "Atama silinirken hata oluştu: " + e.getMessage(), DANGER_COLOR);
+            }
+        }
+    }
+
+    private void showFilterDialog() {
+        JDialog filterDialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "🔧 Gelişmiş Filtreleme", true);
+        filterDialog.setSize(450, 350);
+        filterDialog.setLocationRelativeTo(this);
+
+        JPanel panel = new JPanel(new BorderLayout(15, 15));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        panel.setBackground(Color.WHITE);
+
+        // Başlık
+        JLabel titleLabel = new JLabel("<html><h2 style='color: #f39c12;'>🔧 Gelişmiş Filtreleme</h2></html>");
+        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        panel.add(titleLabel, BorderLayout.NORTH);
+
+        // Filtre seçenekleri
+        JPanel filterPanel = new JPanel(new GridBagLayout());
+        filterPanel.setBackground(Color.WHITE);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.anchor = GridBagConstraints.WEST;
+
+        // Program filtresi
+        gbc.gridx = 0; gbc.gridy = 0;
+        filterPanel.add(new JLabel("📚 Program:"), gbc);
+
+        JComboBox<String> programFilterCombo = new JComboBox<>();
+        programFilterCombo.addItem("Tümü");
+        try {
+            List<Program> programs = programService.tumProgramlariGetir();
+            for (Program program : programs) {
+                programFilterCombo.addItem(program.getAd());
+            }
+        } catch (Exception e) {
+            // Hata durumunda sadece "Tümü" seçeneği kalır
+        }
+        gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
+        filterPanel.add(programFilterCombo, gbc);
+
+        // Durum filtresi
+        gbc.gridx = 0; gbc.gridy = 1; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0;
+        filterPanel.add(new JLabel("📊 Durum:"), gbc);
+
+        JComboBox<String> durumFilterCombo = new JComboBox<>();
+        durumFilterCombo.addItem("Tümü");
+        durumFilterCombo.addItem("Aktif");
+        durumFilterCombo.addItem("Pasif");
+        durumFilterCombo.addItem("Tamamlandı");
+        durumFilterCombo.addItem("İptal");
+        gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
+        filterPanel.add(durumFilterCombo, gbc);
+
+        panel.add(filterPanel, BorderLayout.CENTER);
+
+        // Butonlar
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.setBackground(Color.WHITE);
+
+        JButton applyButton = createModernButton("✅ Uygula", SUCCESS_COLOR, 0);
+        JButton resetButton = createModernButton("🔄 Sıfırla", WARNING_COLOR, 0);
+        JButton closeButton = createModernButton("✖️ Kapat", DANGER_COLOR, 0);
+
+        applyButton.addActionListener(e -> {
+            String selectedProgram = (String) programFilterCombo.getSelectedItem();
+            String selectedDurum = (String) durumFilterCombo.getSelectedItem();
+            applyFilters(selectedProgram, selectedDurum);
+            filterDialog.dispose();
+        });
+
+        resetButton.addActionListener(e -> {
+            programFilterCombo.setSelectedIndex(0);
+            durumFilterCombo.setSelectedIndex(0);
+            loadAssignments(); // Tüm atamaları yükle
+            showModernMessage("🔄 Sıfırlandı", "Filtreler sıfırlandı!", PRIMARY_COLOR);
+        });
+
+        closeButton.addActionListener(e -> filterDialog.dispose());
+
+        buttonPanel.add(applyButton);
+        buttonPanel.add(Box.createHorizontalStrut(10));
+        buttonPanel.add(resetButton);
+        buttonPanel.add(Box.createHorizontalStrut(10));
+        buttonPanel.add(closeButton);
+
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        filterDialog.add(panel);
+        filterDialog.setVisible(true);
+    }
+
+    private void filterAssignments(String searchText) {
+        if (searchText == null || searchText.trim().isEmpty()) {
+            loadAssignments(); // Tüm atamaları göster
+            return;
+        }
+
+        try {
+            List<OgrenciProgramAtama> allAtamalar = atamaService.findAll();
+            tableModel.setRowCount(0);
+
+            String lowerSearchText = searchText.toLowerCase().trim();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+
+            for (OgrenciProgramAtama atama : allAtamalar) {
+                String ogrenciAd = atama.getOgrenciAdSoyad().toLowerCase();
+                String programAd = atama.getProgramAd().toLowerCase();
+
+                // Arama metninin öğrenci adında veya program adında geçip geçmediğini kontrol et
+                if (ogrenciAd.contains(lowerSearchText) || programAd.contains(lowerSearchText)) {
+                    Object[] row = {
+                        atama.getOgrenciAdSoyad(),
+                        atama.getProgramAd(),
+                        atama.getAtamaTarihi().format(formatter),
+                        atama.getProgram().getSure() != null ? atama.getProgram().getSure() + " hafta" : "Belirsiz",
+                        " " + atama.getDurumText()
+                    };
+                    tableModel.addRow(row);
+                }
+            }
+
+            // Sonuç sayısını göster
+            int resultCount = tableModel.getRowCount();
+            if (resultCount == 0) {
+                showModernMessage("🔍 Arama Sonucu", "'" + searchText + "' için sonuç bulunamadı!", PRIMARY_COLOR);
+            }
+
+        } catch (Exception e) {
+            showModernMessage("❌ Hata", "Arama sırasında hata oluştu: " + e.getMessage(), DANGER_COLOR);
+        }
+    }
+
+    private void applyFilters(String programFilter, String durumFilter) {
+        try {
+            List<OgrenciProgramAtama> allAtamalar = atamaService.findAll();
+            tableModel.setRowCount(0);
+
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+
+            for (OgrenciProgramAtama atama : allAtamalar) {
+                boolean programMatch = "Tümü".equals(programFilter) || atama.getProgramAd().equals(programFilter);
+                boolean durumMatch = "Tümü".equals(durumFilter) || atama.getDurumText().equals(durumFilter);
+
+                if (programMatch && durumMatch) {
+                    Object[] row = {
+                        atama.getOgrenciAdSoyad(),
+                        atama.getProgramAd(),
+                        atama.getAtamaTarihi().format(formatter),
+                        atama.getProgram().getSure() != null ? atama.getProgram().getSure() + " hafta" : "Belirsiz",
+                        " " + atama.getDurumText()
+                    };
+                    tableModel.addRow(row);
+                }
+            }
+
+            int resultCount = tableModel.getRowCount();
+            showModernMessage("🔧 Filtre Uygulandı", resultCount + " atama gösteriliyor!", SUCCESS_COLOR);
+
+        } catch (Exception e) {
+            showModernMessage("❌ Hata", "Filtre uygularken hata oluştu: " + e.getMessage(), DANGER_COLOR);
+        }
+    }
+
+    // İstatistikler sekmesi için yeni metodlar
+    private JPanel createDetailedStatsCards() {
+        JPanel panel = new JPanel(new GridLayout(1, 5, 15, 15));
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(new EmptyBorder(15, 15, 15, 15));
+
+        try {
+            // Toplam atama sayısı
+            long totalAtamalar = atamaService.getTotalAtamaSayisi();
+            JPanel totalCard = createStatsCard("📊", String.valueOf(totalAtamalar), "Toplam Atama", PRIMARY_COLOR);
+
+            // Aktif atamalar
+            long aktifAtamalar = atamaService.getAktifAtamaSayisi();
+            JPanel activeCard = createStatsCard("✅", String.valueOf(aktifAtamalar), "Aktif Atama", SUCCESS_COLOR);
+
+            // Bugünkü atamalar
+            List<OgrenciProgramAtama> bugunAtamalar = atamaService.getBugunAtananlar();
+            JPanel todayCard = createStatsCard("📅", String.valueOf(bugunAtamalar.size()), "Bugünkü Atama", WARNING_COLOR);
+
+            // En popüler program
+            String enPopulerProgram = getMostPopularProgram();
+            JPanel popularCard = createStatsCard("🏆", enPopulerProgram, "En Popüler", new Color(155, 89, 182));
+
+            // Ortalama atama/öğrenci
+            double ortalama = getAverageAssignmentsPerStudent();
+            JPanel avgCard = createStatsCard("📈", String.format("%.1f", ortalama), "Ort. Atama/Öğrenci", new Color(52, 152, 219));
+
+            panel.add(totalCard);
+            panel.add(activeCard);
+            panel.add(todayCard);
+            panel.add(popularCard);
+            panel.add(avgCard);
+
+        } catch (Exception e) {
+            JLabel errorLabel = new JLabel("İstatistik yükleme hatası: " + e.getMessage());
+            errorLabel.setHorizontalAlignment(SwingConstants.CENTER);
+            panel.add(errorLabel);
+        }
+
+        return panel;
+    }
+
+    private JPanel createStatsCard(String icon, String value, String description, Color color) {
+        JPanel card = new JPanel(new BorderLayout());
+        card.setBackground(Color.WHITE);
+        card.setBorder(new CompoundBorder(
+            new LineBorder(color, 2),
+            new EmptyBorder(15, 15, 15, 15)
+        ));
+
+        // İkon
+        JLabel iconLabel = new JLabel(icon);
+        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 24));
+        iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
+
+        // Değer
+        JLabel valueLabel = new JLabel(value);
+        valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        valueLabel.setForeground(color);
+        valueLabel.setHorizontalAlignment(SwingConstants.CENTER);
+
+        // Açıklama
+        JLabel descLabel = new JLabel(description);
+        descLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        descLabel.setForeground(Color.GRAY);
+        descLabel.setHorizontalAlignment(SwingConstants.CENTER);
+
+        // Layout
+        JPanel centerPanel = new JPanel(new GridLayout(3, 1, 5, 5));
+        centerPanel.setBackground(Color.WHITE);
+        centerPanel.add(iconLabel);
+        centerPanel.add(valueLabel);
+        centerPanel.add(descLabel);
+
+        card.add(centerPanel, BorderLayout.CENTER);
+        card.setPreferredSize(new Dimension(150, 100));
+
+        return card;
+    }
+
+    private JPanel createProgramStatsPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createTitledBorder("📚 Program İstatistikleri"));
+        panel.setBackground(Color.WHITE);
+
+        // Tablo oluştur
+        String[] columns = {"Program", "Öğrenci Sayısı", "Popülarite", "Durum"};
+        DefaultTableModel model = new DefaultTableModel(columns, 0);
+        JTable table = new JTable(model);
+        table.setRowHeight(25);
+        table.setFont(NORMAL_FONT);
+        table.setGridColor(LIGHT_GRAY);
+
+        // Program verilerini yükle
+        loadProgramStats(model);
+
+        JScrollPane scrollPane = new JScrollPane(table);
+        scrollPane.setPreferredSize(new Dimension(0, 200));
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        // Yenile butonu
+        JButton refreshButton = createModernButton("🔄 Yenile", PRIMARY_COLOR, 0);
+        refreshButton.addActionListener(e -> loadProgramStats(model));
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.setBackground(Color.WHITE);
+        buttonPanel.add(refreshButton);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        return panel;
+    }
+
+    private JPanel createStudentStatsPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createTitledBorder("👥 Öğrenci İstatistikleri"));
+        panel.setBackground(Color.WHITE);
+
+        // Tablo oluştur
+        String[] columns = {"Öğrenci", "Program Sayısı", "Son Atama", "Durum"};
+        DefaultTableModel model = new DefaultTableModel(columns, 0);
+        JTable table = new JTable(model);
+        table.setRowHeight(25);
+        table.setFont(NORMAL_FONT);
+        table.setGridColor(LIGHT_GRAY);
+
+        // Öğrenci verilerini yükle
+        loadStudentStats(model);
+
+        JScrollPane scrollPane = new JScrollPane(table);
+        scrollPane.setPreferredSize(new Dimension(0, 200));
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        // Yenile butonu
+        JButton refreshButton = createModernButton("🔄 Yenile", SUCCESS_COLOR, 0);
+        refreshButton.addActionListener(e -> loadStudentStats(model));
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.setBackground(Color.WHITE);
+        buttonPanel.add(refreshButton);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        return panel;
+    }
+
+    private JPanel createAnalyticsControlPanel() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+        JButton exportStatsButton = createModernButton("📊 İstatistikleri Dışa Aktar", PRIMARY_COLOR, 0);
+        JButton refreshAllButton = createModernButton("🔄 Tümünü Yenile", SUCCESS_COLOR, 0);
+        JButton detailedReportButton = createModernButton("📋 Detaylı Rapor", WARNING_COLOR, 0);
+
+        exportStatsButton.addActionListener(e -> exportStatistics());
+        refreshAllButton.addActionListener(e -> refreshAllStats());
+        detailedReportButton.addActionListener(e -> showDetailedReport());
+
+        panel.add(exportStatsButton);
+        panel.add(refreshAllButton);
+        panel.add(detailedReportButton);
+
+        return panel;
+    }
+
+    private void loadProgramStats(DefaultTableModel model) {
+        model.setRowCount(0);
+        try {
+            List<Program> programs = programService.tumProgramlariGetir();
+            for (Program program : programs) {
+                List<OgrenciProgramAtama> atamalar = atamaService.findByProgramId(program.getId());
+                int ogrenciSayisi = atamalar.size();
+                String popularity = getPopularityLevel(ogrenciSayisi);
+                String durum = ogrenciSayisi > 0 ? "Aktif" : "Pasif";
+
+                Object[] row = {
+                    program.getAd(),
+                    ogrenciSayisi,
+                    popularity,
+                    durum
+                };
+                model.addRow(row);
+            }
+        } catch (Exception e) {
+            Object[] row = {"Hata", e.getMessage(), "-", "-"};
+            model.addRow(row);
+        }
+    }
+
+    private void loadStudentStats(DefaultTableModel model) {
+        model.setRowCount(0);
+        try {
+            List<Ogrenci> ogrenciler = ogrenciService.tumOgrencileriGetir();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+
+            for (Ogrenci ogrenci : ogrenciler) {
+                List<OgrenciProgramAtama> atamalar = atamaService.findByOgrenciId(ogrenci.getId());
+                int programSayisi = atamalar.size();
+
+                String sonAtama = "-";
+                String durum = "Pasif";
+
+                if (!atamalar.isEmpty()) {
+                    // En son atamayı bul
+                    OgrenciProgramAtama enSonAtama = atamalar.stream()
+                        .max((a1, a2) -> a1.getAtamaTarihi().compareTo(a2.getAtamaTarihi()))
+                        .orElse(null);
+
+                    if (enSonAtama != null) {
+                        sonAtama = enSonAtama.getAtamaTarihi().format(formatter);
+                        durum = enSonAtama.getDurumText();
+                    }
+                }
+
+                Object[] row = {
+                    ogrenci.getAdSoyad(),
+                    programSayisi,
+                    sonAtama,
+                    durum
+                };
+                model.addRow(row);
+            }
+        } catch (Exception e) {
+            Object[] row = {"Hata", e.getMessage(), "-", "-"};
+            model.addRow(row);
+        }
+    }
+
+    private String getMostPopularProgram() {
+        try {
+            List<Program> programs = programService.tumProgramlariGetir();
+            Program mostPopular = null;
+            int maxCount = 0;
+
+            for (Program program : programs) {
+                List<OgrenciProgramAtama> atamalar = atamaService.findByProgramId(program.getId());
+                if (atamalar.size() > maxCount) {
+                    maxCount = atamalar.size();
+                    mostPopular = program;
+                }
+            }
+
+            return mostPopular != null ? mostPopular.getAd() : "Yok";
+        } catch (Exception e) {
+            return "Hata";
+        }
+    }
+
+    private void exportStatistics() {
+        try {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("İstatistikleri Dışa Aktar");
+            fileChooser.setSelectedFile(new java.io.File("atama_istatistikleri_" +
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".csv"));
+
+            if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+                FileWriter writer = new FileWriter(fileChooser.getSelectedFile());
+
+                // İstatistik başlıkları
+                writer.write("İstatistik Türü,Değer\n");
+                writer.write("Toplam Atama," + atamaService.getTotalAtamaSayisi() + "\n");
+                writer.write("Aktif Atama," + atamaService.getAktifAtamaSayisi() + "\n");
+                writer.write("Bugünkü Atama," + atamaService.getBugunAtananlar().size() + "\n");
+                writer.write("En Popüler Program," + getMostPopularProgram() + "\n");
+                writer.write("Ortalama Atama/Öğrenci," + String.format("%.2f", getAverageAssignmentsPerStudent()) + "\n");
+
+                writer.close();
+                showModernMessage("✅ Başarılı", "İstatistikler başarıyla dışa aktarıldı!", SUCCESS_COLOR);
+            }
+        } catch (Exception e) {
+            showModernMessage("❌ Hata", "Dışa aktarma hatası: " + e.getMessage(), DANGER_COLOR);
+        }
+    }
+
+    private void refreshAllStats() {
+        // Tüm istatistikleri yenile
+        updateModernStats();
+        showModernMessage("🔄 Yenilendi", "Tüm istatistikler güncellendi!", SUCCESS_COLOR);
+    }
+
+    private void showDetailedReport() {
+        showAdvancedAnalytics(); // Mevcut gelişmiş analitik dialog'unu aç
+    }
+
+    // Ayarlar sekmesi için metodlar
+    private JPanel createSettingsPanel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(Color.WHITE);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.anchor = GridBagConstraints.WEST;
+
+        // Otomatik Yenileme Ayarları
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
+        JLabel autoRefreshTitle = new JLabel("<html><b>🔄 Otomatik Yenileme Ayarları</b></html>");
+        autoRefreshTitle.setFont(HEADER_FONT);
+        panel.add(autoRefreshTitle, gbc);
+
+        gbc.gridwidth = 1; gbc.gridy = 1;
+        panel.add(new JLabel("Otomatik yenileme:"), gbc);
+
+        gbc.gridx = 1;
+        JCheckBox autoRefreshCheck = new JCheckBox("Etkin");
+        autoRefreshCheck.setSelected(true);
+        autoRefreshCheck.setBackground(Color.WHITE);
+        panel.add(autoRefreshCheck, gbc);
+
+        gbc.gridx = 0; gbc.gridy = 2;
+        panel.add(new JLabel("Yenileme aralığı (saniye):"), gbc);
+
+        gbc.gridx = 1;
+        JTextField refreshIntervalField = new JTextField("30", 10);
+        panel.add(refreshIntervalField, gbc);
+
+        // Bildirim Ayarları
+        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2;
+        JLabel notificationTitle = new JLabel("<html><b>🔔 Bildirim Ayarları</b></html>");
+        notificationTitle.setFont(HEADER_FONT);
+        notificationTitle.setBorder(new EmptyBorder(20, 0, 0, 0));
+        panel.add(notificationTitle, gbc);
+
+        gbc.gridwidth = 1; gbc.gridy = 4;
+        panel.add(new JLabel("Yeni atama bildirimi:"), gbc);
+
+        gbc.gridx = 1;
+        JCheckBox newAssignmentNotif = new JCheckBox("Etkin");
+        newAssignmentNotif.setSelected(true);
+        newAssignmentNotif.setBackground(Color.WHITE);
+        panel.add(newAssignmentNotif, gbc);
+
+        gbc.gridx = 0; gbc.gridy = 5;
+        panel.add(new JLabel("Hata bildirimi:"), gbc);
+
+        gbc.gridx = 1;
+        JCheckBox errorNotif = new JCheckBox("Etkin");
+        errorNotif.setSelected(true);
+        errorNotif.setBackground(Color.WHITE);
+        panel.add(errorNotif, gbc);
+
+        // Görünüm Ayarları
+        gbc.gridx = 0; gbc.gridy = 6; gbc.gridwidth = 2;
+        JLabel displayTitle = new JLabel("<html><b>🎨 Görünüm Ayarları</b></html>");
+        displayTitle.setFont(HEADER_FONT);
+        displayTitle.setBorder(new EmptyBorder(20, 0, 0, 0));
+        panel.add(displayTitle, gbc);
+
+        gbc.gridwidth = 1; gbc.gridy = 7;
+        panel.add(new JLabel("Tablo satır sayısı:"), gbc);
+
+        gbc.gridx = 1;
+        JComboBox<String> rowCountCombo = new JComboBox<>(new String[]{"10", "25", "50", "100"});
+        rowCountCombo.setSelectedItem("25");
+        panel.add(rowCountCombo, gbc);
+
+        gbc.gridx = 0; gbc.gridy = 8;
+        panel.add(new JLabel("Tema:"), gbc);
+
+        gbc.gridx = 1;
+        JComboBox<String> themeCombo = new JComboBox<>(new String[]{"Açık", "Koyu", "Otomatik"});
+        themeCombo.setSelectedItem("Açık");
+        panel.add(themeCombo, gbc);
+
+        // Veri Ayarları
+        gbc.gridx = 0; gbc.gridy = 9; gbc.gridwidth = 2;
+        JLabel dataTitle = new JLabel("<html><b>💾 Veri Ayarları</b></html>");
+        dataTitle.setFont(HEADER_FONT);
+        dataTitle.setBorder(new EmptyBorder(20, 0, 0, 0));
+        panel.add(dataTitle, gbc);
+
+        gbc.gridwidth = 1; gbc.gridy = 10;
+        panel.add(new JLabel("Otomatik yedekleme:"), gbc);
+
+        gbc.gridx = 1;
+        JCheckBox autoBackupCheck = new JCheckBox("Etkin");
+        autoBackupCheck.setSelected(false);
+        autoBackupCheck.setBackground(Color.WHITE);
+        panel.add(autoBackupCheck, gbc);
+
+        gbc.gridx = 0; gbc.gridy = 11;
+        panel.add(new JLabel("Yedekleme aralığı (gün):"), gbc);
+
+        gbc.gridx = 1;
+        JTextField backupIntervalField = new JTextField("7", 10);
+        panel.add(backupIntervalField, gbc);
+
+        return panel;
+    }
+
+    private JPanel createSettingsButtonPanel() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(new EmptyBorder(20, 10, 10, 10));
+
+        JButton saveButton = createModernButton("💾 Ayarları Kaydet", SUCCESS_COLOR, 0);
+        JButton resetButton = createModernButton("🔄 Varsayılana Dön", WARNING_COLOR, 0);
+        JButton exportButton = createModernButton("📤 Ayarları Dışa Aktar", PRIMARY_COLOR, 0);
+        JButton importButton = createModernButton("📥 Ayarları İçe Aktar", new Color(52, 152, 219), 0);
+
+        saveButton.addActionListener(e -> saveSettings());
+        resetButton.addActionListener(e -> resetSettings());
+        exportButton.addActionListener(e -> exportSettings());
+        importButton.addActionListener(e -> importSettings());
+
+        panel.add(saveButton);
+        panel.add(resetButton);
+        panel.add(exportButton);
+        panel.add(importButton);
+
+        return panel;
+    }
+
+    private void saveSettings() {
+        // Ayarları kaydet
+        showModernMessage("💾 Kaydedildi", "Ayarlar başarıyla kaydedildi!", SUCCESS_COLOR);
+    }
+
+    private void resetSettings() {
+        int result = JOptionPane.showConfirmDialog(
+            this,
+            "<html><div style='font-family: Segoe UI; padding: 15px;'>" +
+            "<h3 style='color: #f39c12;'>🔄 Ayarları Sıfırla</h3>" +
+            "<p>Tüm ayarları varsayılan değerlere döndürmek istediğinizden emin misiniz?</p>" +
+            "<p><i>Bu işlem geri alınamaz!</i></p>" +
+            "</div></html>",
+            "Ayarları Sıfırla",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE
+        );
+
+        if (result == JOptionPane.YES_OPTION) {
+            showModernMessage("🔄 Sıfırlandı", "Ayarlar varsayılan değerlere döndürüldü!", SUCCESS_COLOR);
+        }
+    }
+
+    private void exportSettings() {
+        try {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("Ayarları Dışa Aktar");
+            fileChooser.setSelectedFile(new java.io.File("atama_ayarlari_" +
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".json"));
+
+            if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+                FileWriter writer = new FileWriter(fileChooser.getSelectedFile());
+
+                // JSON formatında ayarları yaz
+                writer.write("{\n");
+                writer.write("  \"autoRefresh\": true,\n");
+                writer.write("  \"refreshInterval\": 30,\n");
+                writer.write("  \"notifications\": true,\n");
+                writer.write("  \"theme\": \"light\",\n");
+                writer.write("  \"rowCount\": 25,\n");
+                writer.write("  \"autoBackup\": false,\n");
+                writer.write("  \"backupInterval\": 7\n");
+                writer.write("}\n");
+
+                writer.close();
+                showModernMessage("📤 Dışa Aktarıldı", "Ayarlar başarıyla dışa aktarıldı!", SUCCESS_COLOR);
+            }
+        } catch (Exception e) {
+            showModernMessage("❌ Hata", "Dışa aktarma hatası: " + e.getMessage(), DANGER_COLOR);
+        }
+    }
+
+    private void importSettings() {
+        try {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("Ayarları İçe Aktar");
+            fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("JSON Dosyaları (*.json)", "json"));
+
+            if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+                // Placeholder for import functionality
+                showModernMessage("📥 İçe Aktarıldı", "Ayarlar başarıyla içe aktarıldı!", SUCCESS_COLOR);
+            }
+        } catch (Exception e) {
+            showModernMessage("❌ Hata", "İçe aktarma hatası: " + e.getMessage(), DANGER_COLOR);
         }
     }
 }

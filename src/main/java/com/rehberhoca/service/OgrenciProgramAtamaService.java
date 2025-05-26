@@ -1,6 +1,7 @@
 package com.rehberhoca.service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,8 +48,24 @@ public class OgrenciProgramAtamaService {
         return atamaRepository.findById(id);
     }
 
+    @Transactional(readOnly = true)
     public List<OgrenciProgramAtama> findAll() {
-        return atamaRepository.findAll();
+        try {
+            List<OgrenciProgramAtama> atamalar = atamaRepository.findAll();
+            // Lazy loading için entity'leri initialize et
+            for (OgrenciProgramAtama atama : atamalar) {
+                if (atama.getOgrenci() != null) {
+                    atama.getOgrenci().getAdSoyad(); // Lazy loading'i tetikle
+                }
+                if (atama.getProgram() != null) {
+                    atama.getProgram().getAd(); // Lazy loading'i tetikle
+                }
+            }
+            return atamalar;
+        } catch (Exception e) {
+            logger.error("Tüm atamaları getirme hatası: {}", e.getMessage(), e);
+            return new ArrayList<>();
+        }
     }
 
     public void delete(OgrenciProgramAtama atama) {
@@ -102,10 +119,10 @@ public class OgrenciProgramAtamaService {
             atama.setAtamaTarihi(LocalDateTime.now());
 
             OgrenciProgramAtama savedAtama = atamaRepository.save(atama);
-            
-            logger.info("Öğrenci programa başarıyla atandı: {} -> {}", 
+
+            logger.info("Öğrenci programa başarıyla atandı: {} -> {}",
                        ogrenciOpt.get().getAdSoyad(), programOpt.get().getAd());
-            
+
             return savedAtama;
 
         } catch (Exception e) {
@@ -121,10 +138,10 @@ public class OgrenciProgramAtamaService {
     public boolean ogrenciyiProgramdanCikar(Long ogrenciId, Long programId) {
         try {
             Optional<OgrenciProgramAtama> atamaOpt = atamaRepository.findByOgrenciIdAndProgramId(ogrenciId, programId);
-            
+
             if (atamaOpt.isPresent()) {
                 atamaRepository.delete(atamaOpt.get());
-                logger.info("Öğrenci programdan başarıyla çıkarıldı: {} -> {}", 
+                logger.info("Öğrenci programdan başarıyla çıkarıldı: {} -> {}",
                            atamaOpt.get().getOgrenciAdSoyad(), atamaOpt.get().getProgramAd());
                 return true;
             } else {
@@ -259,7 +276,68 @@ public class OgrenciProgramAtamaService {
      */
     @Transactional(readOnly = true)
     public List<OgrenciProgramAtama> getBugunAtananlar() {
-        return atamaRepository.findBugunAtananlar();
+        try {
+            List<OgrenciProgramAtama> atamalar = atamaRepository.findBugunAtananlar();
+            // Lazy loading için entity'leri initialize et
+            for (OgrenciProgramAtama atama : atamalar) {
+                if (atama.getOgrenci() != null) {
+                    atama.getOgrenci().getAdSoyad(); // Lazy loading'i tetikle
+                }
+                if (atama.getProgram() != null) {
+                    atama.getProgram().getAd(); // Lazy loading'i tetikle
+                }
+            }
+            return atamalar;
+        } catch (Exception e) {
+            logger.error("Bugün atananları getirme hatası: {}", e.getMessage(), e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * Program ID'ye göre atamaları getir
+     */
+    @Transactional(readOnly = true)
+    public List<OgrenciProgramAtama> findByProgramId(Long programId) {
+        try {
+            List<OgrenciProgramAtama> atamalar = atamaRepository.findByProgramId(programId);
+            // Lazy loading için entity'leri initialize et
+            for (OgrenciProgramAtama atama : atamalar) {
+                if (atama.getOgrenci() != null) {
+                    atama.getOgrenci().getAdSoyad(); // Lazy loading'i tetikle
+                }
+                if (atama.getProgram() != null) {
+                    atama.getProgram().getAd(); // Lazy loading'i tetikle
+                }
+            }
+            return atamalar;
+        } catch (Exception e) {
+            logger.error("Program ID'ye göre atamaları getirme hatası: {}", e.getMessage(), e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * Öğrenci ID'ye göre atamaları getir
+     */
+    @Transactional(readOnly = true)
+    public List<OgrenciProgramAtama> findByOgrenciId(Long ogrenciId) {
+        try {
+            List<OgrenciProgramAtama> atamalar = atamaRepository.findByOgrenciId(ogrenciId);
+            // Lazy loading için entity'leri initialize et
+            for (OgrenciProgramAtama atama : atamalar) {
+                if (atama.getOgrenci() != null) {
+                    atama.getOgrenci().getAdSoyad(); // Lazy loading'i tetikle
+                }
+                if (atama.getProgram() != null) {
+                    atama.getProgram().getAd(); // Lazy loading'i tetikle
+                }
+            }
+            return atamalar;
+        } catch (Exception e) {
+            logger.error("Öğrenci ID'ye göre atamaları getirme hatası: {}", e.getMessage(), e);
+            return new ArrayList<>();
+        }
     }
 
     /**
@@ -267,7 +345,22 @@ public class OgrenciProgramAtamaService {
      */
     @Transactional(readOnly = true)
     public List<OgrenciProgramAtama> getSonGunlerdeAtananlar(int gunSayisi) {
-        LocalDateTime baslangic = LocalDateTime.now().minusDays(gunSayisi);
-        return atamaRepository.findSonGunlerdeAtananlar(baslangic);
+        try {
+            LocalDateTime baslangic = LocalDateTime.now().minusDays(gunSayisi);
+            List<OgrenciProgramAtama> atamalar = atamaRepository.findSonGunlerdeAtananlar(baslangic);
+            // Lazy loading için entity'leri initialize et
+            for (OgrenciProgramAtama atama : atamalar) {
+                if (atama.getOgrenci() != null) {
+                    atama.getOgrenci().getAdSoyad(); // Lazy loading'i tetikle
+                }
+                if (atama.getProgram() != null) {
+                    atama.getProgram().getAd(); // Lazy loading'i tetikle
+                }
+            }
+            return atamalar;
+        } catch (Exception e) {
+            logger.error("Son günlerde atananları getirme hatası: {}", e.getMessage(), e);
+            return new ArrayList<>();
+        }
     }
 }

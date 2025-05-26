@@ -283,16 +283,17 @@ public class RehberHocaAnaEkran extends JFrame {
     }
 
     private JPanel createStatisticsPanel() {
-        JPanel panel = new JPanel(new java.awt.GridLayout(2, 3, 20, 20));
+        JPanel panel = new JPanel(new java.awt.GridLayout(2, 3, 15, 15));
         panel.setBackground(new Color(248, 249, 250));
+        panel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
         // İstatistik kartlarını oluştur
-        totalStudentsCard = createStatsCard("", "0", "Toplam Öğrenci", PRIMARY_COLOR);
-        totalProgramsCard = createStatsCard("", "0", "Aktif Program", SUCCESS_COLOR);
-        totalAssignmentsCard = createStatsCard("", "0", "Program Ataması", INFO_COLOR);
-        systemHealthCard = createStatsCard("", "100%", "Sistem Sağlığı", SUCCESS_COLOR);
-        todayActivityCard = createStatsCard("", "0", "Bugünkü İşlem", WARNING_COLOR);
-        revenueCard = createStatsCard("", "₺0", "Aylık Gelir", new Color(39, 174, 96));
+        totalStudentsCard = createStatsCard("👥", "0", "Toplam Öğrenci", PRIMARY_COLOR);
+        totalProgramsCard = createStatsCard("📚", "0", "Aktif Program", SUCCESS_COLOR);
+        totalAssignmentsCard = createStatsCard("🔗", "0", "Program Ataması", INFO_COLOR);
+        systemHealthCard = createStatsCard("💚", "100%", "Sistem Sağlığı", SUCCESS_COLOR);
+        todayActivityCard = createStatsCard("📈", "0", "Bugünkü Atama", WARNING_COLOR);
+        revenueCard = createStatsCard("💰", "₺0", "Aylık Gelir", new Color(39, 174, 96));
 
         panel.add(totalStudentsCard);
         panel.add(totalProgramsCard);
@@ -307,20 +308,20 @@ public class RehberHocaAnaEkran extends JFrame {
     private JLabel createStatsCard(String icon, String value, String description, Color color) {
         JLabel card = new JLabel();
 
-        card.setText("<html><div style='text-align: center; padding: 20px;'>" +
-                    "<div style='font-size: 36px; margin-bottom: 10px;'>" + icon + "</div>" +
-                    "<div style='font-size: 28px; font-weight: bold; color: " + toHex(color) + "; margin-bottom: 8px;'>" + value + "</div>" +
-                    "<div style='font-size: 13px; color: #7f8c8d;'>" + description + "</div>" +
+        card.setText("<html><div style='text-align: center; padding: 15px;'>" +
+                    "<div style='font-size: 28px; margin-bottom: 8px;'>" + icon + "</div>" +
+                    "<div style='font-size: 22px; font-weight: bold; color: " + toHex(color) + "; margin-bottom: 6px;'>" + value + "</div>" +
+                    "<div style='font-size: 11px; color: #7f8c8d;'>" + description + "</div>" +
                     "</div></html>");
 
         card.setHorizontalAlignment(SwingConstants.CENTER);
         card.setBorder(new CompoundBorder(
-            new LineBorder(color, 3),
-            new EmptyBorder(25, 30, 25, 30)
+            new LineBorder(color, 2),
+            new EmptyBorder(15, 20, 15, 20)
         ));
         card.setBackground(Color.WHITE);
         card.setOpaque(true);
-        card.setPreferredSize(new Dimension(200, 140));
+        card.setPreferredSize(new Dimension(180, 110));
 
         // Hover effect
         card.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -345,7 +346,7 @@ public class RehberHocaAnaEkran extends JFrame {
         panel.setBackground(new Color(248, 249, 250));
         panel.setBorder(BorderFactory.createTitledBorder(
             new LineBorder(DARK_COLOR, 2),
-            "⚡ Hızlı Erişim",
+            " Hızlı Erişim",
             0, 0, HEADER_FONT, DARK_COLOR
         ));
 
@@ -750,24 +751,12 @@ public class RehberHocaAnaEkran extends JFrame {
                 updateStatsCard(totalProgramsCard, "", String.valueOf(programs.size()), "Aktif Program");
 
                 // Atama sayısı
-                int totalAssignments = students.stream()
-                    .mapToInt(s -> {
-                        try {
-                            return programService.ogrencininProgramlari(s.getId()).size();
-                        } catch (Exception e) {
-                            return 0;
-                        }
-                    }).sum();
+                int totalAssignments = (int) atamaService.getTotalAtamaSayisi();
+                updateStatsCard(totalAssignmentsCard, "🔗", String.valueOf(totalAssignments), "Program Ataması");
 
-                updateStatsCard(totalAssignmentsCard, "", String.valueOf(totalAssignments), "Program Ataması");
-
-                // Bugünkü aktivite
-                LocalDateTime today = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
-                long todayStudents = students.stream()
-                    .filter(s -> s.getKayitTarihi().isAfter(today))
-                    .count();
-
-                updateStatsCard(todayActivityCard, "📈", String.valueOf(todayStudents), "Bugünkü İşlem");
+                // Bugünkü aktivite (bugün yapılan atamalar)
+                List<com.rehberhoca.entity.OgrenciProgramAtama> bugunAtamalar = atamaService.getBugunAtananlar();
+                updateStatsCard(todayActivityCard, "📈", String.valueOf(bugunAtamalar.size()), "Bugünkü Atama");
 
                 // Gelir hesaplama (örnek)
                 double monthlyRevenue = students.size() * 150.0; // Öğrenci başı 150 TL
@@ -781,10 +770,10 @@ public class RehberHocaAnaEkran extends JFrame {
 
     private void updateStatsCard(JLabel card, String icon, String value, String description) {
         Color cardColor = getCardColor(card);
-        card.setText("<html><div style='text-align: center; padding: 20px;'>" +
-                    "<div style='font-size: 36px; margin-bottom: 10px;'>" + icon + "</div>" +
-                    "<div style='font-size: 28px; font-weight: bold; color: " + toHex(cardColor) + "; margin-bottom: 8px;'>" + value + "</div>" +
-                    "<div style='font-size: 13px; color: #7f8c8d;'>" + description + "</div>" +
+        card.setText("<html><div style='text-align: center; padding: 15px;'>" +
+                    "<div style='font-size: 28px; margin-bottom: 8px;'>" + icon + "</div>" +
+                    "<div style='font-size: 22px; font-weight: bold; color: " + toHex(cardColor) + "; margin-bottom: 6px;'>" + value + "</div>" +
+                    "<div style='font-size: 11px; color: #7f8c8d;'>" + description + "</div>" +
                     "</div></html>");
     }
 
