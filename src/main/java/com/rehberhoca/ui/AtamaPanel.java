@@ -52,13 +52,17 @@ import javax.swing.table.JTableHeader;
 
 import com.rehberhoca.entity.Ogrenci;
 import com.rehberhoca.entity.Program;
+import com.rehberhoca.entity.OgrenciProgramAtama;
 import com.rehberhoca.service.OgrenciService;
 import com.rehberhoca.service.ProgramService;
+import com.rehberhoca.service.OgrenciProgramAtamaService;
+import java.time.LocalDateTime;
 
 public class AtamaPanel extends JPanel {
 
     private OgrenciService ogrenciService;
     private ProgramService programService;
+    private OgrenciProgramAtamaService atamaService;
 
     // Modern UI Bileşenleri
     private JComboBox<ComboItem<Ogrenci>> ogrenciCombo;
@@ -86,9 +90,10 @@ public class AtamaPanel extends JPanel {
     private static final Font HEADER_FONT = new Font("Segoe UI", Font.BOLD, 14);
     private static final Font NORMAL_FONT = new Font("Segoe UI", Font.PLAIN, 12);
 
-    public AtamaPanel(OgrenciService ogrenciService, ProgramService programService) {
+    public AtamaPanel(OgrenciService ogrenciService, ProgramService programService, OgrenciProgramAtamaService atamaService) {
         this.ogrenciService = ogrenciService;
         this.programService = programService;
+        this.atamaService = atamaService;
         initModernComponents();
         layoutModernComponents();
         setupModernEventListeners();
@@ -991,8 +996,7 @@ public class AtamaPanel extends JPanel {
 
     private boolean isAlreadyAssigned(Long studentId, Long programId) {
         try {
-            List<Program> studentPrograms = programService.ogrencininProgramlari(studentId);
-            return studentPrograms.stream().anyMatch(p -> p.getId().equals(programId));
+            return atamaService.isOgrenciProgramaAtanmis(studentId, programId);
         } catch (Exception e) {
             return false;
         }
@@ -1050,8 +1054,7 @@ public class AtamaPanel extends JPanel {
 
     private int getTotalAssignments() {
         try {
-            List<Ogrenci> students = ogrenciService.tumOgrencileriProgramlariIle();
-            return students.stream().mapToInt(s -> s.getProgramlar().size()).sum();
+            return (int) atamaService.getTotalAtamaSayisi();
         } catch (Exception e) {
             return 0;
         }
@@ -1202,22 +1205,18 @@ public class AtamaPanel extends JPanel {
         tableModel.setRowCount(0);
 
         try {
-            List<Ogrenci> allStudents = ogrenciService.tumOgrencileriProgramlariIle();
+            List<OgrenciProgramAtama> atamalar = atamaService.findAll();
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
-            for (Ogrenci student : allStudents) {
-                if (student.getProgramlar() != null && !student.getProgramlar().isEmpty()) {
-                    for (Program program : student.getProgramlar()) {
-                        Object[] row = {
-                            student.getAdSoyad(),
-                            program.getAd(),
-                            student.getKayitTarihi().format(formatter),
-                            program.getSure() != null ? program.getSure() + " hafta" : "Belirsiz",
-                            " Aktif"
-                        };
-                        tableModel.addRow(row);
-                    }
-                }
+            for (OgrenciProgramAtama atama : atamalar) {
+                Object[] row = {
+                    atama.getOgrenciAdSoyad(),
+                    atama.getProgramAd(),
+                    atama.getAtamaTarihi().format(formatter),
+                    atama.getProgram().getSure() != null ? atama.getProgram().getSure() + " hafta" : "Belirsiz",
+                    " " + atama.getDurumText()
+                };
+                tableModel.addRow(row);
             }
 
             // Tabloyu yenile

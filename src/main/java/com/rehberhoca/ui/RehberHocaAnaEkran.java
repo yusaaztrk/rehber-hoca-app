@@ -59,6 +59,7 @@ import com.rehberhoca.entity.Ogrenci;
 import com.rehberhoca.entity.Program;
 import com.rehberhoca.service.OgrenciService;
 import com.rehberhoca.service.ProgramService;
+import com.rehberhoca.service.OgrenciProgramAtamaService;
 
 @org.springframework.stereotype.Component
 public class RehberHocaAnaEkran extends JFrame {
@@ -68,6 +69,9 @@ public class RehberHocaAnaEkran extends JFrame {
 
     @Autowired
     private ProgramService programService;
+
+    @Autowired
+    private OgrenciProgramAtamaService atamaService;
 
     // UI Bileşenleri
     private JTabbedPane tabbedPane;
@@ -163,7 +167,7 @@ public class RehberHocaAnaEkran extends JFrame {
         // Diğer panelleri oluştur
         ogrenciPanel = new OgrenciPanel(ogrenciService);
         programPanel = new ProgramPanel(programService);
-        atamaPanel = new AtamaPanel(ogrenciService, programService);
+        atamaPanel = new AtamaPanel(ogrenciService, programService, atamaService);
 
         // Program service'i öğrenci paneline bağla
         ogrenciPanel.setProgramService(programService);

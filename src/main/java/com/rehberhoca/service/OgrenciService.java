@@ -16,7 +16,7 @@ import com.rehberhoca.entity.Ogrenci;
 import com.rehberhoca.entity.Program;
 import com.rehberhoca.repository.OgrenciRepository;
 import com.rehberhoca.repository.ProgramRepository;
-import com.rehberhoca.repository.OgrenciProgramRepository;
+import com.rehberhoca.service.OgrenciProgramAtamaService;
 
 @Service
 @Transactional
@@ -34,7 +34,7 @@ public class OgrenciService {
     private EntityManager entityManager;
 
     @Autowired
-    private OgrenciProgramRepository ogrenciProgramRepository;
+    private OgrenciProgramAtamaService atamaService;
 
     // Tüm öğrencileri getir
     public List<Ogrenci> tumOgrencileriGetir() {
@@ -62,8 +62,11 @@ public class OgrenciService {
             Ogrenci ogrenci = ogrenciRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Öğrenci bulunamadı!"));
 
-            // Önce OgrenciProgram tablosundaki tüm kayıtları sil
-            ogrenciProgramRepository.deleteByOgrenciId(id);
+            // Önce tüm atamalarını sil
+            List<com.rehberhoca.entity.OgrenciProgramAtama> atamalar = atamaService.getOgrenciAtamalari(id);
+            for (com.rehberhoca.entity.OgrenciProgramAtama atama : atamalar) {
+                atamaService.delete(atama);
+            }
 
             // Sonra öğrenciyi sil
             ogrenciRepository.delete(ogrenci);
@@ -93,23 +96,30 @@ public class OgrenciService {
     }
 
     // Öğrenciyi programa kaydet
+    @Transactional
     public void ogrenciyiProgramaKaydet(Long ogrenciId, Long programId) {
-        Ogrenci ogrenci = ogrenciGetir(ogrenciId);
-        Program program = programRepository.findById(programId)
-                .orElseThrow(() -> new RuntimeException("Program bulunamadı!"));
-
-        ogrenci.getProgramlar().add(program);
-        ogrenciRepository.save(ogrenci);
+        try {
+            atamaService.ogrenciyiProgramaAta(ogrenciId, programId);
+            logger.info("Öğrenci programa başarıyla kaydedildi: ogrenciId={}, programId={}", ogrenciId, programId);
+        } catch (Exception e) {
+            logger.error("Öğrenci programa kayıt hatası: {}", e.getMessage(), e);
+            throw new RuntimeException("Öğrenci programa kayıt edilemedi: " + e.getMessage());
+        }
     }
 
     // Öğrenciyi programdan çıkar
+    @Transactional
     public void ogrenciyiProgramdanCikar(Long ogrenciId, Long programId) {
-        Ogrenci ogrenci = ogrenciGetir(ogrenciId);
-        Program program = programRepository.findById(programId)
-                .orElseThrow(() -> new RuntimeException("Program bulunamadı!"));
-
-        ogrenci.getProgramlar().remove(program);
-        ogrenciRepository.save(ogrenci);
+        try {
+            boolean basarili = atamaService.ogrenciyiProgramdanCikar(ogrenciId, programId);
+            if (!basarili) {
+                throw new RuntimeException("Bu öğrenci bu programa kayıtlı değil!");
+            }
+            logger.info("Öğrenci programdan başarıyla çıkarıldı: ogrenciId={}, programId={}", ogrenciId, programId);
+        } catch (Exception e) {
+            logger.error("Öğrenci programdan çıkarma hatası: {}", e.getMessage(), e);
+            throw new RuntimeException("Öğrenci programdan çıkarılamadı: " + e.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)
