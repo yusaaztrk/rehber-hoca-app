@@ -13,13 +13,13 @@ import com.zaxxer.hikari.HikariDataSource;
 
 @Configuration
 public class DatabaseConfig {
-    
+
     @Bean
     @Primary
     public DataSource dataSource() {
         HikariConfig config = new HikariConfig();
         config.setDriverClassName("com.mysql.cj.jdbc.Driver");
-        config.setJdbcUrl("jdbc:mysql://localhost:3306/rehber_hoca_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Europe/Istanbul");
+        config.setJdbcUrl("jdbc:mysql://localhost:3306/rehber_hoca_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Europe/Istanbul&autoReconnect=true&useUnicode=true&characterEncoding=UTF-8");
         config.setUsername("root");
         config.setPassword(""); // XAMPP için şifre boş
         config.setMaximumPoolSize(10);
@@ -27,10 +27,13 @@ public class DatabaseConfig {
         config.setConnectionTimeout(30000);
         config.setIdleTimeout(600000);
         config.setMaxLifetime(1800000);
-        
+        config.setLeakDetectionThreshold(60000);
+        config.setValidationTimeout(5000);
+        config.setConnectionTestQuery("SELECT 1");
+
         return new HikariDataSource(config);
     }
-    
+
     @Bean
     public JpaTransactionManager transactionManager(EntityManagerFactory entityManagerFactory) {
         return new JpaTransactionManager(entityManagerFactory);

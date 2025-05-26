@@ -13,11 +13,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.rehberhoca.entity.Ogrenci;
-import com.rehberhoca.entity.OgrenciProgram;
 import com.rehberhoca.entity.Program;
 import com.rehberhoca.repository.OgrenciRepository;
-import com.rehberhoca.repository.OgrenciProgramRepository;
 import com.rehberhoca.repository.ProgramRepository;
+import com.rehberhoca.repository.OgrenciProgramRepository;
 
 @Service
 @Transactional
@@ -57,10 +56,24 @@ public class OgrenciService {
     }
 
     // Öğrenci sil
+    @Transactional
     public void ogrenciSil(Long id) {
-        Ogrenci ogrenci = ogrenciRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Öğrenci bulunamadı!"));
-        ogrenciRepository.delete(ogrenci);
+        try {
+            Ogrenci ogrenci = ogrenciRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Öğrenci bulunamadı!"));
+
+            // Önce OgrenciProgram tablosundaki tüm kayıtları sil
+            ogrenciProgramRepository.deleteByOgrenciId(id);
+
+            // Sonra öğrenciyi sil
+            ogrenciRepository.delete(ogrenci);
+
+            logger.info("Öğrenci başarıyla silindi: {}", ogrenci.getAdSoyad());
+
+        } catch (Exception e) {
+            logger.error("Öğrenci silme hatası: {}", e.getMessage(), e);
+            throw new RuntimeException("Öğrenci silme işlemi başarısız: " + e.getMessage());
+        }
     }
 
     // ID ile öğrenci getir
@@ -81,25 +94,12 @@ public class OgrenciService {
 
     // Öğrenciyi programa kaydet
     public void ogrenciyiProgramaKaydet(Long ogrenciId, Long programId) {
-        try {
-            // Önce çift kayıt kontrolü yap
-            if (ogrenciProgramRepository.existsByOgrenciIdAndProgramId(ogrenciId, programId)) {
-                throw new RuntimeException("Bu öğrenci zaten bu programa kayıtlı!");
-            }
+        Ogrenci ogrenci = ogrenciGetir(ogrenciId);
+        Program program = programRepository.findById(programId)
+                .orElseThrow(() -> new RuntimeException("Program bulunamadı!"));
 
-            // Öğrenci ve program varlığını kontrol et
-            Ogrenci ogrenci = ogrenciGetir(ogrenciId);
-            Program program = programRepository.findById(programId)
-                    .orElseThrow(() -> new RuntimeException("Program bulunamadı!"));
-
-            // OgrenciProgram entity'si oluştur ve kaydet
-            OgrenciProgram ogrenciProgram = new OgrenciProgram(ogrenci, program, "Aktif", "Sistem tarafından atandı");
-            ogrenciProgramRepository.save(ogrenciProgram);
-
-        } catch (Exception e) {
-            logger.error("Öğrenci programa kaydetme hatası: {}", e.getMessage());
-            throw new RuntimeException("Atama işlemi başarısız: " + e.getMessage());
-        }
+        ogrenci.getProgramlar().add(program);
+        ogrenciRepository.save(ogrenci);
     }
 
     // Öğrenciyi programdan çıkar

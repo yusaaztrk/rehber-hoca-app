@@ -49,10 +49,10 @@ public class DataLoader implements CommandLineRunner {
 
                 // Örnek öğrenciler oluştur
                 createSampleStudents();
-            }
 
-            // Örnek öğrenci-program atamaları oluştur (her zaman çalıştır)
-            createSampleOgrenciPrograms();
+                // Örnek öğrenci-program atamaları oluştur (sadece ilk kurulumda)
+                createSampleOgrenciPrograms();
+            }
 
             logger.info("=== Örnek veri başarıyla yüklendi ===");
 

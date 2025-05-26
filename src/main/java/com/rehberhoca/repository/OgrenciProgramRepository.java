@@ -136,4 +136,15 @@ public interface OgrenciProgramRepository extends JpaRepository<OgrenciProgram, 
     // Programın öğrenci sayısı
     @Query("SELECT COUNT(DISTINCT op.ogrenci.id) FROM OgrenciProgram op WHERE op.program.id = :programId AND op.durum = 'Aktif'")
     long countAktifOgrencilerByProgramId(@Param("programId") Long programId);
+
+    // Silme işlemleri
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM OgrenciProgram op WHERE op.ogrenci.id = :ogrenciId")
+    void deleteByOgrenciId(@Param("ogrenciId") Long ogrenciId);
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM OgrenciProgram op WHERE op.program.id = :programId")
+    void deleteByProgramId(@Param("programId") Long programId);
 }

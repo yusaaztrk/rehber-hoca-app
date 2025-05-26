@@ -10,6 +10,7 @@ import com.rehberhoca.entity.Ogrenci;
 import com.rehberhoca.entity.Program;
 import com.rehberhoca.repository.OgrenciRepository;
 import com.rehberhoca.repository.ProgramRepository;
+import com.rehberhoca.repository.OgrenciProgramRepository;
 
 @Service
 @Transactional
@@ -20,6 +21,9 @@ public class ProgramService {
 
     @Autowired
     private OgrenciRepository ogrenciRepository;
+
+    @Autowired
+    private OgrenciProgramRepository ogrenciProgramRepository;
 
     // Tüm programları getir
     public List<Program> tumProgramlariGetir() {
@@ -37,17 +41,21 @@ public class ProgramService {
     }
 
     // Program sil
+    @Transactional
     public void programSil(Long id) {
-        Program program = programRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Program bulunamadı!"));
+        try {
+            Program program = programRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Program bulunamadı!"));
 
-        // Önce öğrenci ilişkilerini temizle
-        for (Ogrenci ogrenci : program.getOgrenciler()) {
-            ogrenci.getProgramlar().remove(program);
+            // Önce OgrenciProgram tablosundaki tüm kayıtları sil
+            ogrenciProgramRepository.deleteByProgramId(id);
+
+            // Sonra programı sil
+            programRepository.delete(program);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Program silme işlemi başarısız: " + e.getMessage());
         }
-        program.getOgrenciler().clear();
-
-        programRepository.delete(program);
     }
 
     // ID ile program getir

@@ -53,14 +53,12 @@ import javax.swing.table.JTableHeader;
 import com.rehberhoca.entity.Ogrenci;
 import com.rehberhoca.entity.Program;
 import com.rehberhoca.service.OgrenciService;
-import com.rehberhoca.service.OgrenciProgramService;
 import com.rehberhoca.service.ProgramService;
 
 public class AtamaPanel extends JPanel {
 
     private OgrenciService ogrenciService;
     private ProgramService programService;
-    private OgrenciProgramService ogrenciProgramService;
 
     // Modern UI Bileşenleri
     private JComboBox<ComboItem<Ogrenci>> ogrenciCombo;
@@ -88,10 +86,9 @@ public class AtamaPanel extends JPanel {
     private static final Font HEADER_FONT = new Font("Segoe UI", Font.BOLD, 14);
     private static final Font NORMAL_FONT = new Font("Segoe UI", Font.PLAIN, 12);
 
-    public AtamaPanel(OgrenciService ogrenciService, ProgramService programService, OgrenciProgramService ogrenciProgramService) {
+    public AtamaPanel(OgrenciService ogrenciService, ProgramService programService) {
         this.ogrenciService = ogrenciService;
         this.programService = programService;
-        this.ogrenciProgramService = ogrenciProgramService;
         initModernComponents();
         layoutModernComponents();
         setupModernEventListeners();
@@ -994,8 +991,8 @@ public class AtamaPanel extends JPanel {
 
     private boolean isAlreadyAssigned(Long studentId, Long programId) {
         try {
-            // OgrenciProgramService kullanarak kontrol et
-            return ogrenciProgramService.isOgrenciProgramaKayitli(studentId, programId);
+            List<Program> studentPrograms = programService.ogrencininProgramlari(studentId);
+            return studentPrograms.stream().anyMatch(p -> p.getId().equals(programId));
         } catch (Exception e) {
             return false;
         }
